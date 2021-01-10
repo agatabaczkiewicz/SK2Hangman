@@ -49,6 +49,7 @@ def receive_data2(socket_des):
 			send_data(socket_des,"agata")
 		elif decoded =="3":
 			print(f"witaj w pokoju: {room}")
+			go=False
 			#send_data(socket_des,"agata")
 		elif decoded =="4":
 			print("Pokoj juz pelny/n 1-sprobuj poniej/n 2 -wybierz inny numer")
@@ -61,6 +62,7 @@ receive_data2(s)
 #time.sleep(2)
 #send_data(s)
 #receive_data2(s)
-
-	
+h=1
+while h==1:
+	h=int(input("podaj 1-dalej,0-koniec"))
 s.close()

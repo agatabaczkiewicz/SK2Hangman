@@ -9,19 +9,38 @@
 #include <poll.h>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
 #include <vector>
 #include <string>
+
 #define SERVER_PORT 1234
 
 using namespace std;
 
 
 vector<string> nicks;
+mutex mutex_players;
+vector<mutex> mutex_games;
+vector<condition_variable> wait_for_others;
+thread threads[15];//dla kazdego gracza
 int rooms[3][6];
 int id=0;
+
+struct thread_data_t {
+    int nr_deskryptora1;            // deskryptor powiązany z danym wątkiem
+    int nr_deskryptora2; 
+    int nr_deskryptora3;
+    int nr_deskryptora4;
+    int nr_deskryptora5;           // deskryptor przeciwnika z pary
+    char data[6];                   // tablica do przesyładnia danych
+    int pokoj;                      // numer pokoju 
+    int numer;                      // identyfikator (ten, który jest przypisywany na samym początku)
+  
+};
+
 
 bool check_nicks(string s){
 	for(string i : nicks){
@@ -41,6 +60,23 @@ void init(){
 	}
 }
 
+void *ThreadBehavior(void *t_data){
+
+}
+
+/*void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
+    int identyfikator = id;
+    int room = gdzie;
+    pthread_mutex_unlock(&players);
+    mutex_players.unlock();
+    t_data[identyfikator].nr_deskryptora1 = connection_socket_descriptor;
+    t_data[identyfikator].pokoj = room;
+    t_data[identyfikator].numer = identyfikator;
+
+    pthread_create(&thread[identyfikator], NULL, ThreadBehavior, (void *)&t_data[identyfikator]);
+}
+
+*/
 
 int main(int argc, char* argv[]) {
     int server_socket_descriptor;
@@ -88,8 +124,8 @@ while(1){
 	if(write(connection_socket_descriptor, "0", 1)<0){
 		cout<<"write error"<<endl; 
 }
- 
-	while(true){
+ 	//bool x=true;
+	//while(x){
 		bool go = true;
 			//wybieranie nicku
 	   		while(go){
@@ -124,13 +160,16 @@ while(1){
 			num--;
 		if(rooms[num][0]*rooms[num][1]*rooms[num][2]*rooms[num][3]*rooms[num][4]*rooms[num][5]==0){
 			for(int i=0;i<5;i++){
+				//mutex
+				//mutex_players.lock();
 				if(rooms[num][i]==0){
 					id++;
 					rooms[num][i]=id;
 					if(write(connection_socket_descriptor, "3", 1)<0){
 						cout<<"write error"<<endl;
-					}
+					}					
 					room=false;
+					//x=false;
 					break;
 				}
 			}
@@ -142,13 +181,18 @@ while(1){
 			
 		}
 
-		}
+		} //koniec while(room)
 
-        }
-	sleep(1);
-	  
+		//handleConnection(connection_socket_descriptor, identy, i);
+		
+
+ 		
+       // }
+	//sleep(1);
+	
 }
- close(server_socket_descriptor);
-	printf("Connection closed\n");
+  close(server_socket_descriptor);
+printf("Connection closed\n");
+	
 }
 
