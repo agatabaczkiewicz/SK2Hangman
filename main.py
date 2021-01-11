@@ -24,7 +24,7 @@ FONT = pg.font.Font(None, 32)
 nick_init = FONT.render('Nick:', False, (0, 0, 0))
 
 hangman = 0
-
+players = 3
 
 class Button_server():
     def __init__(self, color, x, y, width, height, text=''):
@@ -51,7 +51,7 @@ class Button_server():
             text = font.render(self.text, 1, (0, 0, 0))
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15 ))
 
-            text = font.render(str(self.players) + " / 5", 1, (0, 0, 0))
+            text = font.render(str(players) + " / 5", 1, (0, 0, 0))
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 45))
 
             text = font2.render(roomStatus[self.status], 1, (0, 0, 0))
@@ -147,6 +147,10 @@ serversButtons.append(Button_server(colors["gray"], 130, 150, 130, 130, "Room 1"
 serversButtons.append(Button_server(colors["gray"], 330, 150, 130, 130, "Room 2"))
 serversButtons.append(Button_server(colors["gray"], 530, 150, 130, 130, "Room 3"))
 exit_button = Button(colors["lightgreen"], 600, 500, 130, 60, "Exit")
+vote_button = Button(colors["lightgreen"], 50, 180, 130, 60, "Vote")
+exit2_button = Button(colors["lightgreen"], 220, 180, 130, 60, "Exit")
+exit3_button = Button(colors["lightgreen"], 300, 300, 130, 60, "Exit")
+poczekalnia_button = Button(colors["lightgreen"], 70, 300, 130, 60, "Play again")
 nick = InputBox(100, 500, 140, 32)
 
 word = "SCHABOWY"
@@ -174,6 +178,7 @@ RESULT_FONT = pg.font.SysFont('comicsans',60)
 
 
 def menu():
+    global screen
     run = True
     while run:
         for e in pg.event.get():
@@ -191,7 +196,8 @@ def menu():
                 if e.button == 1:
                     for room in serversButtons:
                         if room.isOver(pg.mouse.get_pos()) and room.status == 0 and room.players < 5:
-                            game()
+                            poczekalnia()
+                            screen = pg.display.set_mode((800, 600))
                     if exit_button.isOver(pg.mouse.get_pos()):
                         run = False
                         # pg.quit()
@@ -215,6 +221,7 @@ def menu():
 def game():
     global screen
     global hangman
+    screen = pg.display.set_mode((800, 600))
     screen = pg.display.set_mode((screen.get_width(), screen.get_height()))#, pg.FULLSCREEN)
     screen.fill(colors["white"])
     run = True
@@ -239,15 +246,27 @@ def game():
         text = WORD_FONT.render(display_word, 1, colors["black"])
         screen.blit(text, (round(WIDTH / 2) - 50, 50))
 
+        #gracze
+        text = LETTER_FONT.render("Players fails:", 1, colors["black"])
+        screen.blit(text, (50, 300))
+
+        text = LETTER_FONT.render("Player 1:   2 / 7", 1, colors["black"])
+        screen.blit(text, (50, 370))
+        text = LETTER_FONT.render("Player 2:   0 / 7", 1, colors["black"])
+        screen.blit(text, (50, 420))
+        text = LETTER_FONT.render("Player 3:   4 / 7", 1, colors["black"])
+        screen.blit(text, (50, 470))
+        text = LETTER_FONT.render("Player 4:   1 / 7", 1, colors["black"])
+        screen.blit(text, (50, 520))
+
+
+
+
+
         for e in pg.event.get():
             if e.type == pg.QUIT:
-                run = False
-                screen = pg.display.set_mode((800,600))
-            if e.type == pg.KEYDOWN:
-                if e.key == pg.K_ESCAPE:
-                    run = False
-                    screen = pg.display.set_mode((800, 600))
-                    pg.QUIT
+                pg.QUIT
+                quit()
             if e.type == pg.MOUSEBUTTONDOWN:
                 m_x, m_y = pg.mouse.get_pos()
                 for letter in letters:
@@ -265,26 +284,96 @@ def game():
                 won = False
                 break
         if won:
-            screen.fill(colors["white"])
-            text = RESULT_FONT.render("WIN!!!", 1, colors["black"])
-            screen.blit(text, (WIDTH/2-90, HEIGHT/2-40))
-            pg.display.update()
-            pg.time.delay(3000)
             reset_game()
             run = False
+            results()
 
         if hangman == 6:
-            screen.fill(colors["white"])
-            text = RESULT_FONT.render("LOSE!!!", 1, colors["black"])
-            screen.blit(text, (WIDTH/2-90, HEIGHT/2-40))
-            pg.display.update()
-            pg.time.delay(3000)
             reset_game()
             run = False
+            results()
 
 
 
         pg.display.update()
+
+def poczekalnia():
+    global screen
+    global players
+    screen = pg.display.set_mode((400, 300))
+    p_width = 400
+    p_height = 300
+    run = True
+    while run:
+        screen.fill(colors["white"])
+        text = WORD_FONT.render("POCZEKALNIA", 1, colors["black"])
+        screen.blit(text, (round(p_width / 2) - 90, 50))
+
+        text = LETTER_FONT.render(str(players) + " / 5 PLAYERS", 1, colors["red"])
+        screen.blit(text, (round(p_width / 2) - 50, 100))
+        exit2_button.draw(screen)
+        if players > 2 and players < 5:
+            vote_button.draw(screen)
+
+        for e in pg.event.get():
+            if e.type == pg.QUIT:
+                run = False
+                pg.QUIT
+                quit()
+            if e.type == pg.MOUSEBUTTONDOWN:
+                if e.button == 1:
+                    if vote_button.isOver(pg.mouse.get_pos()) and players > 2 and players != 5:
+                        # + 1 osoba do ankiety
+                        game()
+                        run = False
+                    if exit2_button.isOver(pg.mouse.get_pos()):
+                        run = False
+
+
+        pg.display.update()
+
+
+def results():
+    global screen
+    global players
+    screen = pg.display.set_mode((500, 400))
+    p_width = 400
+    p_height = 300
+    run = True
+    while run:
+        screen.fill(colors["white"])
+        text = WORD_FONT.render("GAME RESULTS:", 1, colors["black"])
+        screen.blit(text, (round(p_width / 2) - 90, 40))
+
+        text = LETTER_FONT.render("Player 1:   4 pkt", 1, colors["black"])
+        screen.blit(text, (50, 90))
+        text = LETTER_FONT.render("Player 2:   6 pkt", 1, colors["black"])
+        screen.blit(text, (50, 130))
+        text = LETTER_FONT.render("Player 3:   1 pkt", 1, colors["black"])
+        screen.blit(text, (50, 170))
+        text = LETTER_FONT.render("Player 4:   0 pkt", 1, colors["black"])
+        screen.blit(text, (50, 210))
+        text = LETTER_FONT.render("Player 5:   2 pkt", 1, colors["black"])
+        screen.blit(text, (50, 250))
+        exit3_button.draw(screen)
+
+        poczekalnia_button.draw(screen)
+
+        for e in pg.event.get():
+            if e.type == pg.QUIT:
+                run = False
+                pg.QUIT
+                quit()
+            if e.type == pg.MOUSEBUTTONDOWN:
+                if e.button == 1:
+                    if poczekalnia_button.isOver(pg.mouse.get_pos()):
+                        poczekalnia()
+                        run = False
+                    if exit3_button.isOver(pg.mouse.get_pos()):
+                        run = False
+
+        pg.display.update()
+
 
 def reset_game():
     global hangman, choosen
@@ -296,8 +385,8 @@ def reset_game():
 
 
 menu()
-
-
+#game()
+#results()
 
 
 
