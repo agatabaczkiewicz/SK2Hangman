@@ -5,9 +5,9 @@
 #include <errno.h>
 #include <error.h>
 #include <netdb.h>
-#include <sys/epoll.h>
-#include <poll.h>
+#include <signal.h>
 #include <thread>
+#include <stdlib.h>
 #include <mutex>
 #include <condition_variable>
 #include <arpa/inet.h>
@@ -31,6 +31,7 @@ int id=0;
 int ask[3]{0,0,0};                // pomocniczy licznik do ankiety
 int players[3]{0,0,0};           //liczba zalogowanych graczy w poszczegolnym pokoju
 bool game[3]{false,false,false}; //czy gra zaczela sie
+int server_socket_descriptor;
 
 struct thread_data_t {
     int nr_deskryptora1;            // deskryptor powiązany z danym wątkiem
@@ -156,12 +157,8 @@ void ThreadBehavior(thread_data_t *t_data){
 	threads[(*th_data).numer].detach();
 }
 
-void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
-    int identyfikator = id;
-    int room = gdzie;
-   // pthread_mutex_unlock(&players);
-	mutex_players.unlock();
-    bool go = true;
+void ask_nick(int connection_socket_descriptor){
+  bool go = true;
 			//wybieranie nicku
 	while(go){
 		char data[20]{};
@@ -186,6 +183,17 @@ void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
 		}
 		mutex_players.unlock();
 	}
+}
+
+
+
+void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
+    int identyfikator = id;
+    int room = gdzie;
+   // pthread_mutex_unlock(&players);
+	mutex_players.unlock();
+	ask_nick(connection_socket_descriptor);
+
 
     //mutex_players.unlock();
     t_data[identyfikator].nr_deskryptora1 = connection_socket_descriptor;
@@ -196,16 +204,20 @@ void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
     threads[identyfikator] = thread(ThreadBehavior,&t_data[identyfikator]);
   
 }
-
+void signal_handler(int sig){
+	close(server_socket_descriptor);
+	exit(0);
+}
 
 
 int main(int argc, char* argv[]) {
-    int server_socket_descriptor;
+   
     int connection_socket_descriptor;
     int bind_result;
     int listen_result;
     char reuse_addr_val = 1;
     struct sockaddr_in server_address;
+    signal(SIGINT, signal_handler);
     init();
     //inicjalizacja gniazda serwera
     memset(&server_address, 0, sizeof(struct sockaddr));
