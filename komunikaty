@@ -1,5 +1,7 @@
-0-akceptacja nowego polaczenia
-1-nick dodany
+0- sukces dodania nicku
+1-akceptacja nowego polaczenia, prosba o podanie pokoju
 2- nick zajety, podaj inny
-3-witaj w pokoju
+3-witaj w pokoju, podaj nick
 4-pokoj zajete
+5-czekac na kogos jeszcze
+6-zaczynamy gre
