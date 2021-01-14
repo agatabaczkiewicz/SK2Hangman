@@ -169,14 +169,14 @@ void ask_nick(int connection_socket_descriptor){
 		s=s.substr(0,s.length()-2);
 		mutex_players.lock();
 		if(check_nicks(s)){
-			if(write(connection_socket_descriptor, "0$$", 3)<0){
+			if(write(connection_socket_descriptor, "1$$", 3)<0){ // dodanie nicku powiodlo sie, prosba o nowy pokoj
 				cout<<"write error"<<endl;
 			}
 			//mutex_players.unlock();
 			go=false;
 		}
 		else if (!check_nicks(s)){
-			if(write(connection_socket_descriptor, "2$$", 3)<0){
+			if(write(connection_socket_descriptor, "2$$", 3)<0){ //nick zajety, podaj nowy
 				cout<<"write error"<<endl;
 			}
 
@@ -190,9 +190,9 @@ void ask_nick(int connection_socket_descriptor){
 void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
     int identyfikator = id;
     int room = gdzie;
-   // pthread_mutex_unlock(&players);
+ 
 	mutex_players.unlock();
-	ask_nick(connection_socket_descriptor);
+	//ask_nick(connection_socket_descriptor);
 
 
     //mutex_players.unlock();
@@ -217,7 +217,7 @@ int main(int argc, char* argv[]) {
     int listen_result;
     char reuse_addr_val = 1;
     struct sockaddr_in server_address;
-    signal(SIGINT, signal_handler);
+    //signal(SIGINT, signal_handler);
     init();
     //inicjalizacja gniazda serwera
     memset(&server_address, 0, sizeof(struct sockaddr));
@@ -254,10 +254,10 @@ while(1){
             exit(1);
         }
 	printf("Accepted a new connection\n");
-	if(write(connection_socket_descriptor, "1$$", 3)<0){
+	if(write(connection_socket_descriptor, "0$$", 3)<0){ //akceptacja nowego polaczenia prosba o dodanie nicku
 		cout<<"write error"<<endl; 
 }
- 
+ 		ask_nick(connection_socket_descriptor);
 		bool room =true;
 		//wybieranie pokoju
 		while(room){
@@ -282,7 +282,7 @@ while(1){
 					
 					rooms[num][i]=connection_socket_descriptor;
 					id++;
-					if(write(connection_socket_descriptor, "3$$", 3)<0){
+					if(write(connection_socket_descriptor, "3$$", 3)<0){ //jestes dopisany do pokoju
 						cout<<"write error"<<endl;
 					}
 					players[num]+=1; //zwiekszenie luczby licznika graczy w pokoju					

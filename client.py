@@ -33,10 +33,6 @@ def send_data(socket_des,message):
     except:
         print("send goes wrong")
 
-def receive_data(socket_des):
-	dataFromServer = socket_des.recv(1024);
-	print(dataFromServer.decode())
-	print("Podaj nick")
 
 def receive_data2(socket_des):
 	go = True
@@ -52,18 +48,18 @@ def receive_data2(socket_des):
 			send_data(socket_des,name2)
 			
 		elif decoded =="1":
-			print("Witaj\n")
+			print(f"Witaj {name}\n")
 			#print("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-5")
 			room=input("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-5\n")
 			send_data(socket_des,room)
 		elif decoded =="0":
-			print(f"czesc {name}\n")
-			#name=input("Podaj Nick\n")
-			#send_data(socket_des,name)
-		elif decoded =="3":
-			print(f"witaj w pokoju: {room}\n")
+			#print(f"czesc {name}\n")
 			name=input("Podaj Nick\n")
 			send_data(socket_des,name)
+		elif decoded =="3":
+			print(f"witaj w pokoju: {room}\n")
+			#name=input("Podaj Nick\n")
+			#send_data(socket_des,name)
 			#go=False
 			#send_data(socket_des,"agata")
 		elif decoded =="4":
