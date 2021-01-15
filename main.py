@@ -1,21 +1,36 @@
 import math
 
+import socket
+import threading
+import sys
+import time
+import signal
+
 import pygame as pg
+
+port = 1235
+ip_addr = "127.0.0.1"
+s = socket.socket()
 
 WIDTH, HEIGHT = 800, 600
 pg.init()
 bg = pg.image.load("bg-photo.png")
 bg = pg.transform.scale(bg, (800, 600))
-screen = pg.display.set_mode((800,600))
+screen = pg.display.set_mode((800, 600))
 screen.blit(bg, (0, 0))
 
 pg.display.set_caption("Hangman")
 
-colors = {"black":(0,0,0), "darkgray":(70,70,70), "gray":(128,128,128), "lightgray":(200,200,200), "white":(255,255,255), "red":(255,0,0),
-          "darkred":(128,0,0),"green":(0,255,0),"darkgreen":(0,128,0), "blue":(0,0,255), "navy":(0,0,128), "darkblue":(0,0,128),
-          "yellow":(255,255,0), "gold":(255,215,0), "orange":(255,165,0), "lilac":(229,204,255),"lightblue":(135,206,250),"teal":(0,128,128),
-          "cyan":(0,255,255), "purple":(150,0,150), "pink":(238,130,238), "brown":(139,69,19), "lightbrown":(222,184,135),"lightgreen":(144,238,144),
-          "turquoise":(64,224,208),"beige":(245,245,220),"honeydew":(240,255,240),"lavender":(230,230,250),"crimson":(220,20,60)}
+colors = {"black": (0, 0, 0), "darkgray": (70, 70, 70), "gray": (128, 128, 128), "lightgray": (200, 200, 200),
+          "white": (255, 255, 255), "red": (255, 0, 0),
+          "darkred": (128, 0, 0), "green": (0, 255, 0), "darkgreen": (0, 128, 0), "blue": (0, 0, 255),
+          "navy": (0, 0, 128), "darkblue": (0, 0, 128),
+          "yellow": (255, 255, 0), "gold": (255, 215, 0), "orange": (255, 165, 0), "lilac": (229, 204, 255),
+          "lightblue": (135, 206, 250), "teal": (0, 128, 128),
+          "cyan": (0, 255, 255), "purple": (150, 0, 150), "pink": (238, 130, 238), "brown": (139, 69, 19),
+          "lightbrown": (222, 184, 135), "lightgreen": (144, 238, 144),
+          "turquoise": (64, 224, 208), "beige": (245, 245, 220), "honeydew": (240, 255, 240),
+          "lavender": (230, 230, 250), "crimson": (220, 20, 60)}
 
 roomStatus = ["Oczekuje", "Trwa gra"]
 
@@ -26,6 +41,53 @@ nick_init = FONT.render('Nick:', False, (0, 0, 0))
 hangman = 0
 players = 3
 
+
+def signal_handler(signal, frame):
+    s.close()
+    print("sss")
+    sys.exit(0)
+
+
+def connect():
+    global s
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ip_addr, port))
+        print("connected")
+    except:
+        print("sth goes wrong")
+        sys.exit(1)
+
+
+def send_data(socket_des, message):
+    try:
+        message += "$$"
+        socket_des.send(message.encode())
+    except:
+        print("send goes wrong")
+
+
+def receive_data2(socket_des, data_to_send):
+    go = True
+    decoded = ""
+    while go:
+        while decoded.find("$$") == -1:
+            dataFromServer = socket_des.recv(3);
+            decoded = dataFromServer.decode()
+        decoded = decoded[:-2]
+        if decoded == "2":
+            print("nick zajety podaj inny\n")
+            # name2=input("Podaj Nick\n")
+            send_data(socket_des, data_to_send)
+        elif decoded == "1":
+            print(f"Witaj\n")
+            # print("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-5")
+            send_data(socket_des, "2")
+
+        elif decoded == "0":
+            print("czesc")
+            send_data(socket_des, data_to_send)
+        go = False
 class Button_server():
     def __init__(self, color, x, y, width, height, text=''):
         self.color = color
@@ -49,14 +111,13 @@ class Button_server():
             font = pg.font.SysFont('comicsans', 30)
             font2 = pg.font.SysFont('comicsans', 20)
             text = font.render(self.text, 1, (0, 0, 0))
-            screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15 ))
+            screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15))
 
             text = font.render(str(players) + " / 5", 1, (0, 0, 0))
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 45))
 
             text = font2.render(roomStatus[self.status], 1, (0, 0, 0))
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 80))
-
 
     def isOver(self, pos):
         # Pos is the mouse position or a tuple of (x,y) coordinates
@@ -65,6 +126,7 @@ class Button_server():
                 return True
 
         return False
+
 
 class Button():
     def __init__(self, color, x, y, width, height, text=''):
@@ -85,7 +147,7 @@ class Button():
         if self.text != '':
             font = pg.font.SysFont('comicsans', 30)
             text = font.render(self.text, 1, (0, 0, 0))
-            screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15 ))
+            screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15))
 
     def isOver(self, pos):
         # Pos is the mouse position or a tuple of (x,y) coordinates
@@ -94,6 +156,7 @@ class Button():
                 return True
 
         return False
+
 
 class InputBox:
     def __init__(self, x, y, w, h, text=''):
@@ -130,19 +193,17 @@ class InputBox:
 
     def update(self):
         # Resize the box if the text is too long.
-        width = max(200, self.txt_surface.get_width()+10)
+        width = max(200, self.txt_surface.get_width() + 10)
         self.rect.w = width
 
     def draw(self, screen):
         # Blit the text.
-        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
+        screen.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
         # Blit the rect.
         pg.draw.rect(screen, self.color, self.rect, 2)
 
 
-
-
-serversButtons=[]
+serversButtons = []
 serversButtons.append(Button_server(colors["gray"], 130, 150, 130, 130, "Room 1"))
 serversButtons.append(Button_server(colors["gray"], 330, 150, 130, 130, "Room 2"))
 serversButtons.append(Button_server(colors["gray"], 530, 150, 130, 130, "Room 3"))
@@ -161,20 +222,19 @@ for i in range(7):
     image = pg.image.load("images/images/hangman" + str(i) + ".png")
     images.append(image)
 
-
 RADIUS = 15
 GAP = 10
 letters = []
-startx = round((WIDTH - (RADIUS * 2 + GAP)*6) / 2)
+startx = round((WIDTH - (RADIUS * 2 + GAP) * 6) / 2)
 starty = 400
 for i in range(26):
     x = startx + GAP * 2 + ((RADIUS * 2 + GAP) * (i % 6))
     y = starty + ((i // 6) * (GAP + RADIUS * 2))
     letters.append([x, y, chr(65 + i), True])
 
-LETTER_FONT = pg.font.SysFont('comicsans',25)
-WORD_FONT = pg.font.SysFont('comicsans',40)
-RESULT_FONT = pg.font.SysFont('comicsans',60)
+LETTER_FONT = pg.font.SysFont('comicsans', 25)
+WORD_FONT = pg.font.SysFont('comicsans', 40)
+RESULT_FONT = pg.font.SysFont('comicsans', 60)
 
 
 def menu():
@@ -184,8 +244,8 @@ def menu():
         for e in pg.event.get():
             if e.type == pg.QUIT:
                 run = False
-                #pg.quit()
-                #quit()
+                # pg.quit()
+                # quit()
             if e.type == pg.MOUSEMOTION:
                 for room in serversButtons:
                     if room.isOver(pg.mouse.get_pos()):
@@ -196,7 +256,10 @@ def menu():
                 if e.button == 1:
                     for room in serversButtons:
                         if room.isOver(pg.mouse.get_pos()) and room.status == 0 and room.players < 5:
+                            connect()
+                            receive_data2(s, nick.nick)
                             poczekalnia()
+
                             screen = pg.display.set_mode((800, 600))
                     if exit_button.isOver(pg.mouse.get_pos()):
                         run = False
@@ -207,22 +270,21 @@ def menu():
         screen.blit(bg, (0, 0))
         nick.draw(screen)
 
-
         for servbuttons in serversButtons:
             servbuttons.draw(screen)
 
         exit_button.draw(screen)
         screen.blit(nick_init, (25, 505))
 
-
-        #pg.display.flip()
+        # pg.display.flip()
         pg.display.update()
+
 
 def game():
     global screen
     global hangman
     screen = pg.display.set_mode((800, 600))
-    screen = pg.display.set_mode((screen.get_width(), screen.get_height()))#, pg.FULLSCREEN)
+    screen = pg.display.set_mode((screen.get_width(), screen.get_height()))  # , pg.FULLSCREEN)
     screen.fill(colors["white"])
     run = True
     while run:
@@ -233,9 +295,9 @@ def game():
         for letter in letters:
             x, y, ltr, vis = letter
             if vis:
-                pg.draw.circle(screen, colors["black"], (x,y), RADIUS,3)
+                pg.draw.circle(screen, colors["black"], (x, y), RADIUS, 3)
                 text = LETTER_FONT.render(ltr, 1, colors["black"])
-                screen.blit(text,(x- text.get_width()/2, y - text.get_height()/2))
+                screen.blit(text, (x - text.get_width() / 2, y - text.get_height() / 2))
 
         display_word = ""
         for letter in word:
@@ -246,7 +308,7 @@ def game():
         text = WORD_FONT.render(display_word, 1, colors["black"])
         screen.blit(text, (round(WIDTH / 2) - 50, 50))
 
-        #gracze
+        # gracze
         text = LETTER_FONT.render("Players fails:", 1, colors["black"])
         screen.blit(text, (50, 300))
 
@@ -259,10 +321,6 @@ def game():
         text = LETTER_FONT.render("Player 4:   1 / 7", 1, colors["black"])
         screen.blit(text, (50, 520))
 
-
-
-
-
         for e in pg.event.get():
             if e.type == pg.QUIT:
                 pg.QUIT
@@ -271,7 +329,7 @@ def game():
                 m_x, m_y = pg.mouse.get_pos()
                 for letter in letters:
                     x, y, ltr, vis = letter
-                    distance = math.sqrt((x - m_x)**2 + (y - m_y)**2)
+                    distance = math.sqrt((x - m_x) ** 2 + (y - m_y) ** 2)
                     if distance < RADIUS:
                         letter[3] = False
                         choosen.append(ltr)
@@ -293,9 +351,8 @@ def game():
             run = False
             results()
 
-
-
         pg.display.update()
+
 
 def poczekalnia():
     global screen
@@ -328,7 +385,6 @@ def poczekalnia():
                         run = False
                     if exit2_button.isOver(pg.mouse.get_pos()):
                         run = False
-
 
         pg.display.update()
 
@@ -382,13 +438,13 @@ def reset_game():
         let[3] = True
 
 
-
-
-menu()
-#game()
-#results()
-
-
+try:
+    menu()
+    # game()
+    # results()
+except KeyboardInterrupt:  # obsluga ctr+C
+    s.close()
+    sys.exit(0)
 
 
 
