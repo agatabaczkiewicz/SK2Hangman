@@ -15,7 +15,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
-
+#include <fstream>
+#include <random>
 #define SERVER_PORT 1235
 
 using namespace std;
@@ -31,19 +32,31 @@ int id=0;
 int ask[3]{0,0,0};                // pomocniczy licznik do ankiety
 int players[3]{0,0,0};           //liczba zalogowanych graczy w poszczegolnym pokoju
 bool game[3]{false,false,false}; //czy gra zaczela sie
+string words[3];
 int server_socket_descriptor;
+int port;
+string wordsfile;
+int number_of_words;
+random_device rd;
+mt19937_64 generator;
+
+
 
 struct thread_data_t {
     int nr_deskryptora1;            // deskryptor powiązany z danym wątkiem
             // deskryptor przeciwnika z pary
-    char data[3];                   // tablica do przesyładnia danych
+    char data[3];                   // tablica do przesyładnia danych 
     int pokoj;                      // numer pokoju 
-    int numer;
-    int done;                      // identyfikator (ten, który jest przypisywany na samym początku)
+    int numer;				 // identyfikator (ten, który jest przypisywany na samym początku)
+    int point;                      // punkty zdobyte podczas gry
   
 };
 
 struct thread_data_t t_data[15];
+
+
+
+
 
 string code_message(string message){
 	 return message.append("$$");
@@ -61,21 +74,64 @@ bool check_nicks(string s){
 
 void init(){
 	for(int i=0;i<3;i++){
+		words[i]="0";
 		for(int j=0;j<5;j++){
 			rooms[i][j]=0;
 		}
 	}
+	ifstream file("config.txt"); //odczyt konfiguracji z pliku port,nazwapliku ze slowami, ilosc slow)
+	if(file.is_open()){
+    		string line,x;
+		getline(file, line);
+		x=line;
+       		port = stoi(x);
+		getline(file, line);
+		wordsfile=line;
+		getline(file, line);
+		x=line;
+		number_of_words = stoi(x);
+	}
+	else{
+		cout<<"error";
+		exit(0);
+	}
+	file.close();
+
+}
+
+string get_word(string filename,int num_lines){
+	string word;
+	generator = std::mt19937_64(rd());
+	uniform_int_distribution<int> distribution(1,num_lines);
+	int random_line = distribution(generator);
+ 	
+	ifstream file(filename);
+	if(file.is_open()){
+    		string line;
+    		for(int i = 0; i < random_line; i++){
+       			getline(file, line);
+    		}
+   		word = line;
+    	}
+	else{
+		cout<<"error";
+		exit(0);
+	}
+	file.close();
+
+
+	return word;
 }
 
 void ThreadBehavior(thread_data_t *t_data){
 	struct thread_data_t *th_data = (struct thread_data_t*)t_data;
 	bool wakeup=true;
-	bool wakeup2=true;
+	
 	char data2[3]{};
 	cout<<(*th_data).nr_deskryptora1;
 		unique_lock<mutex> lck(mutex_games[(*th_data).pokoj],defer_lock);
 		lck.lock();
-		
+	
 	 while(wakeup){
         // czekamy na drugiego i trzeciego gracza- minimum aby rozpoczac rozgrywke
         if (rooms[(*th_data).pokoj][0] * rooms[(*th_data).pokoj][1]*rooms[(*th_data).pokoj][2] == 0){
@@ -100,7 +156,7 @@ void ThreadBehavior(thread_data_t *t_data){
 		if(write((*th_data).nr_deskryptora1, "6$$", 3)<0){//wyslij ze zaczynamy gre
 			cout<<"write error"<<endl; 
 		}
-		wakeup2=false;
+		//wakeup2=false;
 		game[(*th_data).pokoj] = true;
 	}
 	else { //tylko dla gracza 1,2,3,4
@@ -118,7 +174,7 @@ void ThreadBehavior(thread_data_t *t_data){
 			cout<<endl<<(*th_data).nr_deskryptora1<<endl;		
 			ask[(*th_data).pokoj]=0;
 		}
-		while(wakeup2){
+		while(true){
 			int read_int = read((*th_data).nr_deskryptora1, &(*th_data).data, 3*sizeof(char));
 			if(read_int<1) break;
 			string s((*th_data).data);
@@ -128,11 +184,13 @@ void ThreadBehavior(thread_data_t *t_data){
 			ask[(*th_data).pokoj]+=nume;
 			if(ask[(*th_data).pokoj] > (players[(*th_data).pokoj]/2)){  // wiekszosc graczy woli grac no to gramy bez czekania GRAMY
 				game[(*th_data).pokoj] = true;
+				
 				break;
 		
 			}
 			else if(rooms[(*th_data).pokoj][0] * rooms[(*th_data).pokoj][1]*rooms[(*th_data).pokoj][2]*rooms[(*th_data).pokoj][3]*rooms[(*th_data).pokoj][4] != 0){ //pojawilo sie 5 graczy GRAMY
 				game[(*th_data).pokoj] = true;
+				
 				break;
 			}
 			else if (ask[(*th_data).pokoj] < (players[(*th_data).pokoj]/2)){ //czekamy
@@ -145,12 +203,47 @@ void ThreadBehavior(thread_data_t *t_data){
 	}
 	
 
-
+	lck.lock();
 	if(game[(*th_data).pokoj] == true){
-
+		game[(*th_data).pokoj] = false;
 		ask[(*th_data).pokoj]=0;
+		
+		int j=players[(*th_data).pokoj];
+		for(int i=0;i<j;i++){
+				if(write(rooms[(*th_data).pokoj][i], "6$$", 3)<0){//zaczynamy gre
+					cout<<"write error"<<endl; 
+				}
+			}
+
 		cout<<endl<<"taaak!!!"<<endl;
+		//game[(*th_data).pokoj] = false;
+		
 	}
+	//zaczynamy gre
+	
+	if(words[(*th_data).pokoj]=="0"){
+		words[(*th_data).pokoj]=get_word(wordsfile,number_of_words);
+		int n=words[(*th_data).pokoj].size() + 2;
+		char cstr[n];
+		string s=words[(*th_data).pokoj];
+		if(n<20){
+			string stuff(20-n, '.');
+			s.append(stuff);
+		}
+		s.append("$$");
+    		strcpy(cstr, s.c_str()); //wiadomosc jako char array
+		int j=players[(*th_data).pokoj];
+		for(int i=0;i<j;i++){
+				if(write(rooms[(*th_data).pokoj][i], &cstr, n)<0){//spytaj czy czekamy jeszcze za kims
+					cout<<"write error"<<endl; 
+				}
+			}
+		
+	}
+	lck.unlock();
+	//oczekiwanie na potwierdzenie - uzyc ask
+	
+	
    
 
 
@@ -199,8 +292,8 @@ void handleConnection(int connection_socket_descriptor, int id, int gdzie) {
     t_data[identyfikator].nr_deskryptora1 = connection_socket_descriptor;
     t_data[identyfikator].pokoj = room;
     t_data[identyfikator].numer = identyfikator;
-    t_data[identyfikator].done=0;
-	cout<<"jestem w handle"<<endl;
+
+	//cout<<"jestem w handle"<<endl;
     threads[identyfikator] = thread(ThreadBehavior,&t_data[identyfikator]);
   
 }
@@ -219,11 +312,12 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in server_address;
     //signal(SIGINT, signal_handler);
     init();
+  
     //inicjalizacja gniazda serwera
     memset(&server_address, 0, sizeof(struct sockaddr));
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_address.sin_port = htons(SERVER_PORT);
+    server_address.sin_port = htons(port);
 
     server_socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket_descriptor < 0)

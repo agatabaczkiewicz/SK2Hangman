@@ -7,13 +7,20 @@ import signal
 port = 1235
 ip_addr="127.0.0.1"
 s=socket.socket()
+word=""
+
+def init():
+	with open('configclient.txt', 'r') as reader:
+		ip_add=reader.readline().rstrip()
+		p=int(reader.readline().rstrip())
+	return ip_add,p
 
 def signal_handler(signal, frame):
 	s.close()
 	print("sss")
 	sys.exit(0)
 
-def connect():
+def connect(ip_addr,port):
 	global s
 	try:
 		s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -33,6 +40,19 @@ def send_data(socket_des,message):
     except:
         print("send goes wrong")
 
+
+def receive_word(socket_des):
+	global word
+	while word.find("$$") == -1:
+		dataFrom = socket_des.recv(20);
+		word=dataFrom.decode()
+		
+		if word.find(".") != -1:
+			word=word[0:word.find(".")]
+		else:
+			word=word[:-2]
+		print(word)
+		break
 
 def receive_data2(socket_des):
 	go = True
@@ -69,14 +89,16 @@ def receive_data2(socket_des):
 			wait=input("chcesz czekac za kolejnym graczem - 0 , gramy - 1\n")
 			send_data(socket_des,wait)
 		elif decoded =="6":
-			print("jest was 5 automatycznie zaczynamy gre");
+			print("zaczynamy gre");
+			receive_word(socket_des);
 			go=False;
 			
 
 	
 	
 try:
-	connect()
+	ip_addr,port=init()
+	connect(ip_addr,port)
 	receive_data2(s)
 #time.sleep(2)
 #send_data(s)
