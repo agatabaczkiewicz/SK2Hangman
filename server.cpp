@@ -192,7 +192,7 @@ void ThreadBehavior(thread_data_t *t_data){
 	bool wakeup=true;
 	int read_int,check,send_int,j,n;
 	bool h;
-	
+	int u=0;
 	cout<<(*th_data).nr_deskryptora1;
 		unique_lock<mutex> lck(mutex_games[(*th_data).pokoj],defer_lock);
 		lck.lock();
@@ -216,25 +216,53 @@ void ThreadBehavior(thread_data_t *t_data){
     }
 
 	  lck.unlock();
-
-	
+	int x=0;
+	h=true;
 	if(rooms[(*th_data).pokoj][4] != 0){ //jest 5 graczy nic nie trzeba robic GRAMY
-		if(write((*th_data).nr_deskryptora1, "600$$", 5)<0){//wyslij ze zaczynamy gre
-			cout<<"write error"<<endl; 
+
+		if(wait[(*th_data).pokoj]!=0){//jezeli  ktos czeka na ciebie
+			x=1;
+			wait_for_others[(*th_data).pokoj].notify_all(); //poinformuj ze jestes i mozemy grac
 		}
 		//wakeup2=false;
-		game[(*th_data).pokoj] = true;
+		else if(game[(*th_data).pokoj] != 0){
+			threads[(*th_data).numer].detach();
+			return;
+		
+		}
+		
+		h=false;
+		game[(*th_data).pokoj] = 1;
 	}
 	else { //tylko dla gracza 1,2,3,4
-		int x=0;
-		if(write((*th_data).nr_deskryptora1, "500$$", 5)<0){//spytaj czy czekamy jeszcze za kims
+
+		if(game[(*th_data).pokoj] != 0){
+			threads[(*th_data).numer].detach();
+			return;
+		
+		}
+		char buf[5];
+		string mes="50"; //kod wiadomosci
+		mes.append(to_string(players[(*th_data).pokoj])); //liczba graczy w pokoju
+		mes.append("$$");
+		strcpy(buf, mes.c_str()); 
+		if(write((*th_data).nr_deskryptora1, &buf, 5)<0){//spytaj czy czekamy jeszcze za kims
 			cout<<"write error"<<endl; 
 		}
 
 
 		if(rooms[(*th_data).pokoj][3]==(*th_data).nr_deskryptora1){ //4 gracz zeruje licznik, dla ponownego pytania czy czekamy za 5
+			while(wait[(*th_data).pokoj]!=(players[(*th_data).pokoj]-1)){
+			continue;
+			}
+			if(game[(*th_data).pokoj]==0){ 
+			char buf[5];
+			string mes="50"; //kod wiadomosci
+			mes.append(to_string(players[(*th_data).pokoj])); //liczba graczy w pokoju
+			mes.append("$$");
+			strcpy(buf, mes.c_str()); 
 			for(int i=0;i<3;i++){
-				if(write(rooms[(*th_data).pokoj][i], "500$$", 5)<0){//spytaj czy czekamy jeszcze za kims
+				if(write(rooms[(*th_data).pokoj][i], &buf, 5)<0){//spytaj czy czekamy jeszcze za kims
 					cout<<"write error"<<endl; 
 				}
 			}		
@@ -242,11 +270,16 @@ void ThreadBehavior(thread_data_t *t_data){
 			ask[(*th_data).pokoj]=0;
 			wait[(*th_data).pokoj]=0;
 			wait_for_others[(*th_data).pokoj].notify_all();
-			
+			}
+			else{
+			if(write((*th_data).nr_deskryptora1, "XXX$$", 5)<0){//sorki inni juz graja
+					cout<<"write error"<<endl; 
+				}
+			}
 		}
-		h=true;
+		
 		while(h){
-		if(wait[(*th_data).pokoj]!=(players[(*th_data).pokoj])){
+		if(wait[(*th_data).pokoj]!=(players[(*th_data).pokoj])-1){
 			
 			cout<<endl<<"dupa "<<(*th_data).numer<<endl;
 			read_int = read((*th_data).nr_deskryptora1, &(*th_data).data, 3*sizeof(char));
@@ -294,7 +327,7 @@ void ThreadBehavior(thread_data_t *t_data){
 	}
 	
 	h=false;
-	cout<<"wyszo"<<endl;
+	cout<<"wyszo"<<(*th_data).numer<<endl;
 	//cout<<(players[(*th_data).pokoj]);
 	/*while(ask[(*th_data).pokoj] == (players[(*th_data).pokoj])){
 		cout<<"j";
@@ -329,7 +362,7 @@ void ThreadBehavior(thread_data_t *t_data){
 	//komunikat o zaczeciu gry i slowo hasla wysyla pierwszy watek ktory dojdzie do tego momentu
 	if(game[(*th_data).pokoj] == 1){
 
-		game[(*th_data).pokoj] = 0;
+		game[(*th_data).pokoj] = 2;
 		//ask[(*th_data).pokoj]=0;
 	
 
@@ -344,7 +377,7 @@ void ThreadBehavior(thread_data_t *t_data){
 
 		//game[(*th_data).pokoj] = false;
 		
-	}
+	
 	//wysylanie slowa
 	
 	if(words[(*th_data).pokoj]=="0"){
@@ -360,6 +393,7 @@ void ThreadBehavior(thread_data_t *t_data){
 			if(ids[(*th_data).pokoj][i]!=99){
 				s.append(to_string(ids[(*th_data).pokoj][i]));
 				s.append(";");
+				
 			}
 			else break;
 		}
@@ -381,6 +415,7 @@ void ThreadBehavior(thread_data_t *t_data){
 			}
 	game[(*th_data).pokoj]=2;
 		
+	}
 	}
 	//mutex_games[(*th_data).pokoj].unlock();
 	/*if(write((*th_data).nr_deskryptora1, "777$$", 5)<0){//spytaj czy czekamy jeszcze za kims
@@ -411,6 +446,7 @@ void ThreadBehavior(thread_data_t *t_data){
                         printf("server has an unexpected problem\n"); 
 			
                         threads[(*th_data).numer].detach();
+			return;
                     }
                 } 
 		}     
@@ -427,10 +463,11 @@ void ThreadBehavior(thread_data_t *t_data){
 		cout<<"hangman+1"<<endl;
 		(*th_data).hangman+=1;	//masz kolejny poziom wisielca
 		string resu="8"; //kod wiadomosci
-		resu.append(to_string((*th_data).hangman)); //poziom wisileca
 		resu.append(to_string((*th_data).numer)); //nr id gracza
 		if((*th_data).numer<10)resu.append("."); 
+		resu.append(to_string((*th_data).hangman)); //poziom wisileca
 		resu.append("$$");
+		cout<<resu<<endl;
 		char buff[6];
 		strcpy(buff, resu.c_str());
 		j=players[(*th_data).pokoj];
@@ -458,7 +495,7 @@ void ThreadBehavior(thread_data_t *t_data){
 		if((*th_data).numer<10){
 			res.append(".");
 		}
-//DODAC LITERE
+
 		res.append("$$");
 		char buff[6];
 		strcpy(buff, res.c_str());
@@ -610,7 +647,7 @@ while(1){
 			int num = stoi(s);
 			num--;
 			cout<<num<<endl;
-		if(rooms[num][0]*rooms[num][1]*rooms[num][2]*rooms[num][3]*rooms[num][4]*rooms[num][5]==0){
+		if(rooms[num][0]*rooms[num][1]*rooms[num][2]*rooms[num][3]*rooms[num][4]*rooms[num][5]==0 and game[num] == 0){
 			
 				for(int i=0;i<5;i++){
 				//mutex
