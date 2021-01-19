@@ -8,9 +8,14 @@ import signal
 
 import pygame as pg
 
-port = 1235
-ip_addr = "127.0.0.1"
 s = socket.socket()
+connected = False
+
+ids=[]
+
+booked_room = [0, False]
+
+
 
 WIDTH, HEIGHT = 800, 600
 pg.init()
@@ -41,6 +46,13 @@ nick_init = FONT.render('Nick:', False, (0, 0, 0))
 hangman = 0
 players = 3
 
+def init():
+    with open('configclient.txt', 'r') as reader:
+        ip_add=reader.readline().rstrip()
+        p=int(reader.readline().rstrip())
+
+    return ip_add,p
+
 
 def signal_handler(signal, frame):
     s.close()
@@ -48,16 +60,20 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 
-def connect():
+def connect(ip_addr,port):
+    global connected
     global s
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip_addr, port))
-        print("connected")
-    except:
-        print("sth goes wrong")
-        sys.exit(1)
+    if connected == False:
+        try:
+            s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            s.connect((ip_addr,port))
+            print("connected")
+            connected = True
+            t.start()
 
+        except:
+            print("sth goes wrong")
+            sys.exit(1)
 
 def send_data(socket_des, message):
     try:
@@ -67,35 +83,127 @@ def send_data(socket_des, message):
         print("send goes wrong")
 
 
-def receive_data2(socket_des, data_to_send):
+def receive_word(socket_des):
+    global word
+    global ids
+    get = ''
+    while len(get) < 38:
+        dataFrom = socket_des.recv(38);
+        get_part = dataFrom.decode()
+        get += get_part
+    get = get.replace(".", "")
+    print(get);
+    i = get.find(";")
+    word = get[0:i]
+    s = ""
+    for sign in get[i + 1::]:
+        if sign != ";" and sign != "$":
+            s += sign
+        elif sign == ";":
+            ids.append(s)
+            s = ""
+        elif sign == "$":
+            print(word)
+            print(ids)
+            return
+
+
+def receive_game(socket_des):
+    buffer_size = 1024
+    read = 0
+    data_final = ""
+    while read < 6:
+        data = socket_des.recv(buffer_size)
+        data = data.decode()
+        print(data)
+        # if data.find('!') != -1:
+        #     return [("er", "03")]
+        read += len(data)
+        data_final += data
+    print(len(data_final))
+    if len(data_final) % 6 == 0:
+        final_list = []
+        for _ in range(int(len(data_final) / 6)):
+            final_list.append(data_final[:4])
+            data_final = data_final[6:]
+        print(final_list)
+    else:
+        print("errr")
+        print(data_final)
+        print("\n")
+
+
+# return [("er", "01")]  # bad receive code
+
+
+
+def receive_data():
+    global s
+    global connected
     go = True
     decoded = ""
-    while go:
+    while connected:
         while decoded.find("$$") == -1:
-            dataFromServer = socket_des.recv(3);
+            dataFromServer = s.recv(5);
             decoded = dataFromServer.decode()
         decoded = decoded[:-2]
-        if decoded == "2":
+        if decoded == "200":
             print("nick zajety podaj inny\n")
-            # name2=input("Podaj Nick\n")
-            send_data(socket_des, data_to_send)
-        elif decoded == "1":
-            print(f"Witaj\n")
-            # print("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-5")
-            send_data(socket_des, "2")
+            pg.time.delay(5000)
+            send_data(s, nick.nick)
 
-        elif decoded == "0":
-            print("czesc")
-            send_data(socket_des, data_to_send)
-        go = False
+        elif decoded == "000":
+            send_data(s, nick.nick)
+
+        elif decoded == "100":
+            print("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-3")
+            send_data(s, str(booked_room[0]))
+            booked_room[1] = True
+
+        elif "3" in decoded:
+            print(f"witaj w pokoju: {booked_room[0]}\n")
+            #print(decoded)
+            if decoded[1] == "0":
+                my_id = decoded[2]
+            else:
+                my_id = decoded[1:]
+            print(my_id)
+        # name=input("Podaj Nick\n")
+        # send_data(socket_des,name)
+        # go=False
+        # send_data(socket_des,"agata")
+        elif decoded == "400":
+            print("Pokoj juz pelny/n 1-sprobuj pozniej/n 2 -wybierz inny numer")
+
+        elif decoded == "500":
+            wait = input("chcesz czekac za kolejnym graczem - 0 , gramy - 1\n")
+            send_data(s, wait)
+        # receive_ids(socket_des)
+        elif decoded == "777":
+            go = False
+
+        elif "60" in decoded:
+            # nplayers=decoded[1] # przesylamy ogolna liczbe graczy
+            print("zaczynamy gre");
+            receive_word(s);
+            v = ""
+            while v != "/":
+                v = input("podaj litere lub / gdy konczysz\n")
+                send_data(s, v)
+                receive_game(s)
+        # while True:
+        #	receive_game(socket_des);
+        # go=False;
+
 class Button_server():
-    def __init__(self, color, x, y, width, height, text=''):
+    def __init__(self, color, x, y, width, height, text, id):
         self.color = color
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.text = text
+        self.id = id
 
         self.players = 0
         self.status = 0
@@ -204,9 +312,9 @@ class InputBox:
 
 
 serversButtons = []
-serversButtons.append(Button_server(colors["gray"], 130, 150, 130, 130, "Room 1"))
-serversButtons.append(Button_server(colors["gray"], 330, 150, 130, 130, "Room 2"))
-serversButtons.append(Button_server(colors["gray"], 530, 150, 130, 130, "Room 3"))
+serversButtons.append(Button_server(colors["gray"], 130, 150, 130, 130, "Room 1", 1))
+serversButtons.append(Button_server(colors["gray"], 330, 150, 130, 130, "Room 2", 2))
+serversButtons.append(Button_server(colors["gray"], 530, 150, 130, 130, "Room 3", 3))
 exit_button = Button(colors["lightgreen"], 600, 500, 130, 60, "Exit")
 vote_button = Button(colors["lightgreen"], 50, 180, 130, 60, "Vote")
 exit2_button = Button(colors["lightgreen"], 220, 180, 130, 60, "Exit")
@@ -236,9 +344,12 @@ LETTER_FONT = pg.font.SysFont('comicsans', 25)
 WORD_FONT = pg.font.SysFont('comicsans', 40)
 RESULT_FONT = pg.font.SysFont('comicsans', 60)
 
+t = threading.Thread(target=receive_data)
+t.daemon = True
 
 def menu():
     global screen
+    global booked_room
     run = True
     while run:
         for e in pg.event.get():
@@ -256,9 +367,11 @@ def menu():
                 if e.button == 1:
                     for room in serversButtons:
                         if room.isOver(pg.mouse.get_pos()) and room.status == 0 and room.players < 5:
-                            connect()
-                            receive_data2(s, nick.nick)
-                            poczekalnia()
+                            booked_room[0] = room.id
+                            connect(ip_addr,port)
+                            pg.time.delay(2000);
+                            if booked_room[1] == True:
+                                poczekalnia()
 
                             screen = pg.display.set_mode((800, 600))
                     if exit_button.isOver(pg.mouse.get_pos()):
@@ -439,6 +552,7 @@ def reset_game():
 
 
 try:
+    ip_addr, port = init()
     menu()
     # game()
     # results()
