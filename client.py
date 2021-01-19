@@ -14,7 +14,7 @@ my_id = ""
 hang_dic = {}
 score = 0
 players=0
-
+id_nick={}
 
 def init():
     with open('configclient.txt', 'r') as reader:
@@ -70,26 +70,43 @@ def receive_word(socket_des):
     global word
     global ids
     get = ''
-    while len(get) < 38:
-        dataFrom = socket_des.recv(38)
+    while len(get) < 138:
+        dataFrom = socket_des.recv(138)
         get_part = dataFrom.decode()
         get += get_part
     get = get.replace(".", "")
+    get+="$"
     print(get)
     i = get.find(";")
     word = get[0:i]
+    
     s = ""
+    turn = 0
+    helper=""
     for sign in get[i+1::]:
-        if sign != ";" and sign != "$":
+        
+        if turn == 0 and sign != ";" and sign != "$": #pierwszy id
             s += sign
-        elif sign == ";":
+        elif sign == ";" and turn == 0:
             hang_dic[s] = 0
             ids.append(s)
+            helper=s
             s = ""
+            turn = 1
+        elif turn == 1 and sign != ";" and sign != "$": #teraz nick
+            s += sign
+        elif sign == ";" and turn == 1:
+            id_nick[helper] = s
+            helper=""
+            s = ""
+            turn = 0
         elif sign == "$":
             print(word)
             print(ids)
+            print(id_nick)
             return
+
+         
 
 
 def receive_game(socket_des):
@@ -195,7 +212,8 @@ def receive_data2(socket_des):
             v = ""
             while v != "/":
                 v = input("podaj litere lub / gdy konczysz\n")
-
+                if v == "/":
+                    break
                 send_data(socket_des, v)
                 receive_game(socket_des)
             # while True:

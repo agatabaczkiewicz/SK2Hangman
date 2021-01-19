@@ -393,15 +393,21 @@ void ThreadBehavior(thread_data_t *t_data){
 			if(ids[(*th_data).pokoj][i]!=99){
 				s.append(to_string(ids[(*th_data).pokoj][i]));
 				s.append(";");
+				for(int nick=0;nick<nicks.size();nick++){
+					if (nicks[nick]==to_string(ids[(*th_data).pokoj][i])){
+						s.append(nicks[nick-1]);
+						s.append(";");
+					}
+				}
 				
 			}
 			else break;
 		}
 		int n=s.length();
-		char cstr[38];
+		char cstr[138];
 
-		if(n<38){
-			string stuff(38-n, '.');
+		if(n<138){
+			string stuff(138-n, '.');
 			s.append(stuff);
 		}
 		s.append("$$");
@@ -409,7 +415,7 @@ void ThreadBehavior(thread_data_t *t_data){
 		//cout<<cstr<<endl;
 		j=players[(*th_data).pokoj];
 		for(int i=0;i<j;i++){
-				if(write(rooms[(*th_data).pokoj][i], &cstr, 38)<0){//wysylamy liczbe znakow w slowie i id innych graczy
+				if(write(rooms[(*th_data).pokoj][i], &cstr, 138)<0){//wysylamy liczbe znakow w slowie i id innych graczy
 					cout<<"write error"<<endl; 
 				}
 			}
@@ -538,7 +544,7 @@ void ask_nick(int connection_socket_descriptor){
            	printf(" Received %2d bytes: |%s|\n",len, data);
 		string s(data);
 		s=s.substr(0,s.length()-2);
-		mutex_players.lock();
+		//mutex_players.lock();
 		if(check_nicks(s)){
 			if(write(connection_socket_descriptor, "100$$", 5)<0){ // dodanie nicku powiodlo sie, prosba o nowy pokoj
 				cout<<"write error"<<endl;
@@ -552,7 +558,7 @@ void ask_nick(int connection_socket_descriptor){
 			}
 
 		}
-		mutex_players.unlock();
+		//mutex_players.unlock();
 	}
 }
 
@@ -632,7 +638,8 @@ while(1){
 	if(write(connection_socket_descriptor, "000$$", 5)<0){ //akceptacja nowego polaczenia prosba o dodanie nicku
 		cout<<"write error"<<endl; 
 }
- 		ask_nick(connection_socket_descriptor);
+ 		mutex_players.lock();
+		ask_nick(connection_socket_descriptor);
 		bool room =true;
 		//wybieranie pokoju
 		while(room){
@@ -643,7 +650,7 @@ while(1){
 			string s(data);
 			s=s.substr(0,s.length()-2);
 			
-			mutex_players.lock();
+			//mutex_players.lock();
 			int num = stoi(s);
 			num--;
 			cout<<num<<endl;
