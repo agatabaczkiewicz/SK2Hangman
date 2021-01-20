@@ -18,6 +18,7 @@
 #include <fstream>
 #include <random>
 #include <queue>  
+#include <algorithm>
 #define SERVER_PORT 1235
 
 using namespace std;
@@ -154,7 +155,7 @@ string get_word(string filename,int num_lines){
 	}
 	file.close();
 	
-
+	std::transform(word.begin(), word.end(),word.begin(), ::toupper);
 	return word;
 }
 
@@ -705,4 +706,3 @@ while(1){
 printf("Connection closed\n");
 	
 }
-
