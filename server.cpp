@@ -37,9 +37,11 @@ int ask[3]{0,0,0};                // pomocniczy licznik do ankiety
 int players[3]{0,0,0};           //liczba zalogowanych graczy w poszczegolnym pokoju
 int game[3]{0,0,0}; //czy gra zaczela sie
 string words[3];
+string done_letter[3];  //przechowuje wykorzytsane juz literki
 int guess[3];
 int lost[3]{0,0,0};
 int wait[3]{0,0,0};
+int x[3]{0,0,0};
 int server_socket_descriptor;
 int port;
 string wordsfile;
@@ -66,12 +68,6 @@ struct thread_data_t {
 struct thread_data_t t_data[15];
 
 
-
-
-
-string code_message(string message){
-	 return message.append("$$");
-}
 
 bool check_nicks(string s){
 	for(string i : nicks){
@@ -110,8 +106,8 @@ void init(){
 		number_of_words = stoi(x);
 	}
 	else{
-		cout<<"error";
-		exit(0);
+		cout<<"Brak pliku config";
+        exit(1);
 	}
 	file.close();
 
@@ -210,22 +206,23 @@ void ThreadBehavior(thread_data_t *t_data){
     }
 
 	//jest gracz trzeci
-	    if(rooms[(*th_data).pokoj][2] == (*th_data).nr_deskryptora1){
+	if(rooms[(*th_data).pokoj][2] == (*th_data).nr_deskryptora1){
 
-        	wait_for_others[(*th_data).pokoj].notify_all();
+        wait_for_others[(*th_data).pokoj].notify_all();
 		
     }
 
-	  lck.unlock();
-	int x=0;
+	lck.unlock();
+	
 	h=true;
+
 	if(rooms[(*th_data).pokoj][4] != 0){ //jest 5 graczy nic nie trzeba robic GRAMY
 
 		if(wait[(*th_data).pokoj]!=0){//jezeli  ktos czeka na ciebie
-			x=1;
+			x[(*th_data).pokoj]=1;
 			wait_for_others[(*th_data).pokoj].notify_all(); //poinformuj ze jestes i mozemy grac
 		}
-		//wakeup2=false;
+		
 		else if(game[(*th_data).pokoj] != 0){
 			threads[(*th_data).numer].detach();
 			return;
@@ -235,26 +232,14 @@ void ThreadBehavior(thread_data_t *t_data){
 		h=false;
 		game[(*th_data).pokoj] = 1;
 	}
-	else { //tylko dla gracza 1,2,3,4
-
-		if(game[(*th_data).pokoj] != 0){
-			threads[(*th_data).numer].detach();
-			return;
 		
-		}
-		char buf[5];
-		string mes="50"; //kod wiadomosci
-		mes.append(to_string(players[(*th_data).pokoj])); //liczba graczy w pokoju
-		mes.append("$$");
-		strcpy(buf, mes.c_str()); 
-		if(write((*th_data).nr_deskryptora1, &buf, 5)<0){//spytaj czy czekamy jeszcze za kims
-			cout<<"write error"<<endl; 
-		}
+////////////////////////////////////////////////////////////////////////////////////////////
 
+	else if(rooms[(*th_data).pokoj][3]==(*th_data).nr_deskryptora1){ //4 gracz zeruje licznik, dla ponownego pytania czy czekamy za 5
+			cout<<"czwarty jestem"<<endl;
 
-		if(rooms[(*th_data).pokoj][3]==(*th_data).nr_deskryptora1){ //4 gracz zeruje licznik, dla ponownego pytania czy czekamy za 5
 			while(wait[(*th_data).pokoj]!=(players[(*th_data).pokoj]-1)){
-			continue;
+				continue;
 			}
 			if(game[(*th_data).pokoj]==0){ 
 			char buf[5];
@@ -262,12 +247,13 @@ void ThreadBehavior(thread_data_t *t_data){
 			mes.append(to_string(players[(*th_data).pokoj])); //liczba graczy w pokoju
 			mes.append("$$");
 			strcpy(buf, mes.c_str()); 
-			for(int i=0;i<3;i++){
+			for(int i=0;i<4;i++){
 				if(write(rooms[(*th_data).pokoj][i], &buf, 5)<0){//spytaj czy czekamy jeszcze za kims
 					cout<<"write error"<<endl; 
 				}
 			}		
-			cout<<endl<<(*th_data).nr_deskryptora1<<endl;		
+			cout<<endl<<(*th_data).nr_deskryptora1<<endl;
+			x[(*th_data).pokoj]=2;		
 			ask[(*th_data).pokoj]=0;
 			wait[(*th_data).pokoj]=0;
 			wait_for_others[(*th_data).pokoj].notify_all();
@@ -276,11 +262,28 @@ void ThreadBehavior(thread_data_t *t_data){
 			if(write((*th_data).nr_deskryptora1, "XXX$$", 5)<0){//sorki inni juz graja
 					cout<<"write error"<<endl; 
 				}
+				threads[(*th_data).numer].detach();
+				return;
 			}
+	}
+	else { //tylko dla gracza 1,2,3
+
+		char buf[5];
+		string mes="50"; //kod wiadomosci
+		mes.append(to_string(players[(*th_data).pokoj])); //liczba graczy w pokoju
+		mes.append("$$");
+		strcpy(buf, mes.c_str()); 
+		if(write((*th_data).nr_deskryptora1, &buf, 5)<0){//spytaj czy czekamy jeszcze za kims
+			cout<<"write error"<<endl; 
 		}
+		}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		
 		while(h){
-		if(wait[(*th_data).pokoj]!=(players[(*th_data).pokoj])-1){
+		if(x[(*th_data).pokoj]==0||x[(*th_data).pokoj]==2){
 			
 			cout<<endl<<"dupa "<<(*th_data).numer<<endl;
 			read_int = read((*th_data).nr_deskryptora1, &(*th_data).data, 3*sizeof(char));
@@ -299,7 +302,7 @@ void ThreadBehavior(thread_data_t *t_data){
 				game[(*th_data).pokoj] = 1;
 				
 				h=false;
-				x=1;
+				x[(*th_data).pokoj]=1;
 				wait_for_others[(*th_data).pokoj].notify_all();
 				cout<<"wychodze"<<endl;
 				break;
@@ -307,7 +310,7 @@ void ThreadBehavior(thread_data_t *t_data){
 			}
 			else if(rooms[(*th_data).pokoj][0] * rooms[(*th_data).pokoj][1]*rooms[(*th_data).pokoj][2]*rooms[(*th_data).pokoj][3]*rooms[(*th_data).pokoj][4] != 0){ //pojawilo sie 5 graczy GRAMY
 				game[(*th_data).pokoj] = 1;
-				x=1;
+				x[(*th_data).pokoj]=1;
 				wait_for_others[(*th_data).pokoj].notify_all();
 				
 				h=false;
@@ -317,15 +320,15 @@ void ThreadBehavior(thread_data_t *t_data){
 				cout<<endl<<"cccc "<<(*th_data).numer<<endl;
 				unique_lock<mutex> lck3(mutex_games[(*th_data).pokoj]);
 				wait_for_others[(*th_data).pokoj].wait(lck3);
-				if (x==1){
-					break;         //ten break nie moze byc jak chcemy tez wiecej niz 3 graczy
+				if (x[(*th_data).pokoj]==1){
+					break;       
 				}
 			}
 
 
 		}
 	
-	}
+	
 	
 	h=false;
 	cout<<"wyszo"<<(*th_data).numer<<endl;
@@ -433,7 +436,7 @@ void ThreadBehavior(thread_data_t *t_data){
 	//oczekiwanie na potwierdzenie - uzyc ask
 	// glowna petla gry - wysylanie i odbieranie wiadomosci
 	
-    while(1){
+    while(players[(*th_data).pokoj]>1){
 	//cout<<"gra"<<endl;
 	n = 0;
 	
@@ -461,11 +464,12 @@ void ThreadBehavior(thread_data_t *t_data){
             	n += read_int;
 	
 	}
-
+	mutex_games[(*th_data).pokoj].lock();
 	cout<<"przed check"<<endl;
 	check = check_in_word((*th_data).data2, words[(*th_data).pokoj]);
 	cout<<"check: "<<check<<endl;
 	guess[(*th_data).pokoj]-=check;
+	mutex_games[(*th_data).pokoj].unlock();
 	if(check==0){
 		cout<<"hangman+1"<<endl;
 		(*th_data).hangman+=1;	//masz kolejny poziom wisielca
