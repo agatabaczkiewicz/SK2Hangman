@@ -51,8 +51,10 @@ id_nick = {}
 my_id = ""
 letter_realtime = ['', False]
 score = 0
-letter_init = False
-hang_arr = []
+word1 = ""
+end  = False
+
+player_hang_score_arr = []
 
 def init():
     with open('configclient.txt', 'r') as reader:
@@ -93,6 +95,7 @@ def send_data(socket_des, message):
 
 def receive_word(socket_des):
     global word
+    global word1
     global ids
     global hang_dic
     get = ''
@@ -105,6 +108,7 @@ def receive_word(socket_des):
     print(get)
     i = get.find(";")
     word = get[0:i]
+    word1 = word
 
     s = ""
     turn = 0
@@ -133,59 +137,60 @@ def receive_word(socket_des):
             return
 
 
-def receive_game(socket_des):
+def receive_game():
     global score
     global hangman
-    global hang_arr
+    global player_hang_score_arr
     global choosen
+    global word1
     global my_id
-    buffer_size = 1024
-    read = 0
-    data_final = ""
-    while read < 6:
-        data = socket_des.recv(buffer_size)
-        data = data.decode()
-        read += len(data)
-        data_final += data
-    if len(data_final) % 6 == 0:
-        final_list = []
-        for _ in range(int(len(data_final) / 6)):
-            final_list.append(data_final[:4])
-            data_final = data_final[6:]
-        print(final_list)
-        print(my_id)
-        for f in final_list:
-            if f[0] == "8":  # hangman
-                if f[2] == ".":
-                    #hang_dic[f[1]] = int(f[3])
-                    hang_arr[int(f[1])][1] = int(f[3])
-                else:
-                    #hang_dic[f[1:3]] = int(f[3])  # id jest dwucyfrowy
-                    hang_arr[int(f[1:2])][1] = int(f[3])
-                if f[1:2] == my_id or f[1] == my_id:
-                    hangman = int(f[3])
-                # if hang_dic[my_id] == 6:
-                # trzeba jakos zablokowac mozliwosc wysylanie i klikania gracza ale caly czas moze dostawac wiadomosci
-                # print("koniec gry")
+    global s
+    socket_des = s
+    while True:
+        buffer_size = 1024
+        read = 0
+        data_final = ""
+        while read < 6:
+            data = socket_des.recv(buffer_size)
+            data = data.decode()
+            read += len(data)
+            data_final += data
+        if len(data_final) % 6 == 0:
+            final_list = []
+            for _ in range(int(len(data_final) / 6)):
+                final_list.append(data_final[:4])
+                data_final = data_final[6:]
+            print(final_list)
+            print(my_id)
+            for f in final_list:
+                if f[0] == "8":  # hangman
+                    if f[2] == ".":
+                        player_hang_score_arr[int(f[1])][1] = int(f[3])
+                    else:
+                        player_hang_score_arr[int(f[1:2])][1] = int(f[3])
+                    if f[1:2] == my_id or f[1] == my_id:
+                        hangman = int(f[3])
+                elif f[0] == "9": # literka
+                    if f[2] == ".":
+                        choosen.append(f[1])
+                        player_hang_score_arr[int(f[1])][2] += word1.count(f[1])
+                        word1 = word1.replace(f[1], "")
+                        if (f[2] == my_id):
+                            score += word.count(f[1])
 
-            elif f[0] == "9":
-                if f[2] == ".":
-                    choosen.append(f[1])
-                    if (f[2] == my_id):
-                        score += word.count(f[1])
+                    else:
+                        choosen.append(f[1])
+                        player_hang_score_arr[int(f[2:3])][2] += word1.count(f[1])
+                        word1 = word1.replace(f[1], "")
+                        if (f[2:3] == my_id):
+                            score += word.count(f[1])
+                            # print('my score' {score}\n")
 
-                else:
-                    choosen.append(f[1])
-                    if (f[2:3] == my_id):
-                        score += word.count(f[1])
-                        # print('my score' {score}\n")
-
-    else:
-        print("errr")
-        print(data_final)
-        print("\n")
-        # return [("er", "01")]  # bad receive code
-
+        else:
+            print("errr")
+            print(data_final)
+            print("\n")
+            # return [("er", "01")]  # bad receive code
 
 
 def receive_data():
@@ -193,7 +198,7 @@ def receive_data():
     global connected
     global players
     global letter_realtime
-    global hang_arr
+    global player_hang_score_arr
     global my_id
     go = True
     decoded = ""
@@ -244,29 +249,22 @@ def receive_data():
             print("zaczynamy gre")
             receive_word(s)
             for key, value in hang_dic.items():
-                temp = [key, value]
-                hang_arr.append(temp)
-            print(hang_arr[0][1])
+                temp = [key, value, 0]
+                player_hang_score_arr.append(temp)
+            print(player_hang_score_arr[0][1])
             vote[1] = True
-            # = ""
-            #while v != "/":
-               # v = input("podaj litere lub / gdy konczysz\n")
-                #if v == "/":
-                #    break
+            t1.start()
             while True:
-                while not letter_init:
-                    pass
                 if letter_realtime[1]:
-                    print("Widzi literke")
                     send_data(s, letter_realtime[0])
                     print("wyslalo literke")
                     letter_realtime[1] = False
-                print("Wchodzi")
-                receive_game(s)
-                print("WESZLO do receve")
-                # while True:
-                #	receive_game(socket_des);
-                #go = False
+            # print("Wchodzi")
+            # receive_game(s)
+            # print("WESZLO do receve")
+            # while True:
+            #	receive_game(socket_des);
+            # go = False
 
 
 class Button_server():
@@ -419,6 +417,9 @@ RESULT_FONT = pg.font.SysFont('comicsans', 60)
 t = threading.Thread(target=receive_data)
 t.daemon = True
 
+t1 = threading.Thread(target=receive_game)
+t1.daemon = True
+
 def menu():
     global screen
     global booked_room
@@ -506,8 +507,7 @@ def poczekalnia():
 def game():
     global screen
     global hangman
-    global letter_realtime
-    global letter_init
+    global letter_realtime, end
     screen = pg.display.set_mode((800, 600))
     screen = pg.display.set_mode((screen.get_width(), screen.get_height()))  # , pg.FULLSCREEN)
     screen.fill(colors["white"])
@@ -519,7 +519,7 @@ def game():
         screen.blit(images[hangman], (round(WIDTH / 2) - 50, 100))
         for letter in letters:
             x, y, ltr, vis = letter
-            if vis:
+            if vis and hangman < 6:
                 pg.draw.circle(screen, colors["black"], (x, y), RADIUS, 3)
                 text = LETTER_FONT.render(ltr, 1, colors["black"])
                 screen.blit(text, (x - text.get_width() / 2, y - text.get_height() / 2))
@@ -538,7 +538,7 @@ def game():
         screen.blit(text, (50, 300))
         cord_y=370
         for i in id_nick:
-            text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(hang_arr[int(i)][1]) + "/ 6", 1, colors["black"])
+            text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][1]) + " / 6", 1, colors["black"])
             screen.blit(text, (50, cord_y))
             cord_y += 50
         for e in pg.event.get():
@@ -550,30 +550,24 @@ def game():
                 for letter in letters:
                     x, y, ltr, vis = letter
                     distance = math.sqrt((x - m_x) ** 2 + (y - m_y) ** 2)
-                    if distance < RADIUS:
+                    if distance < RADIUS and letter[3] == True and hangman < 6:
                         letter[3] = False
-                        #choosen.append(ltr)
-                        #if ltr not in word:
-                            #hangman += 1
                         letter_realtime[0] = ltr
                         letter_realtime[1] = True
-                        letter_init = True
-                        #print(choosen)
+        counter = 0
+        for player in player_hang_score_arr:
+            id, hang, score = player
+            if hang == 6:
+                counter += 1
+        #print("Wyswietlone slowo  " + display_word)
+        #print("Znikaace slowo  " + word1)
+        if len(player_hang_score_arr) - counter < 2 or word1 == "":
+            end = True
 
-        #won = True
-        #for letter in word:
-        #    if letter not in choosen:
-        #        won = False
-                break
-        #if won:
-        #    reset_game()
-        #    run = False
-        #    results()
-
-        #if hangman == 6:
-      #      reset_game()
-       #     run = False
-       #     results()
+        if end:
+            reset_game()
+            run = False
+            results()
 
         pg.display.update()
 
@@ -583,6 +577,7 @@ def game():
 def results():
     global screen
     global players
+    global player_hang_score_arr
     screen = pg.display.set_mode((500, 400))
     p_width = 400
     p_height = 300
@@ -593,7 +588,7 @@ def results():
         screen.blit(text, (round(p_width / 2) - 90, 40))
         cord_y = 90
         for i in id_nick:
-            text = LETTER_FONT.render(str(id_nick[i]) +":   4 pkt", 1, colors["black"])
+            text = LETTER_FONT.render(str(id_nick[i]) +":   " + str(player_hang_score_arr[int(i)][2]), 1, colors["black"])
             screen.blit(text, (50, cord_y))
             cord_y += 40
         exit3_button.draw(screen)
