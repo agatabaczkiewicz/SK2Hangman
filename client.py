@@ -5,17 +5,15 @@ import threading
 import sys
 import time
 import signal
-
+import warnings
 import pygame as pg
-
+warnings.simplefilter("ignore")
 s = socket.socket()
 connected = False
 
 ids = []
 
 booked_room = [0, False]
-
-
 
 WIDTH, HEIGHT = 800, 600
 pg.init()
@@ -52,16 +50,17 @@ my_id = ""
 letter_realtime = ['', False]
 score = 0
 word1 = ""
-end  = False
+end = False
 
 player_hang_score_arr = []
 
-def init():
-    with open('configclient.txt', 'r') as reader:
-        ip_add=reader.readline().rstrip()
-        p=int(reader.readline().rstrip())
 
-    return ip_add,p
+def init():
+    with open('configclient.txt', 'r') as reader:  # dodac ze jak nie ma pliku to wypierdziela
+        ip_add = reader.readline().rstrip()
+        p = int(reader.readline().rstrip())
+
+    return ip_add, p
 
 
 def signal_handler(signal, frame):
@@ -70,13 +69,13 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 
-def connect(ip_addr,port):
+def connect(ip_addr, port):
     global connected
     global s
     if connected == False:
         try:
-            s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-            s.connect((ip_addr,port))
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((ip_addr, port))
             print("connected")
             connected = True
             t.start()
@@ -84,6 +83,7 @@ def connect(ip_addr,port):
         except:
             print("sth goes wrong")
             sys.exit(1)
+
 
 def send_data(socket_des, message):
     try:
@@ -100,9 +100,13 @@ def receive_word(socket_des):
     global hang_dic
     get = ''
     while len(get) < 138:
-        dataFrom = socket_des.recv(138)
-        get_part = dataFrom.decode()
-        get += get_part
+        try:
+            dataFrom = socket_des.recv(138)
+            get_part = dataFrom.decode()
+            get += get_part
+        except:
+            print("you must end your game")
+            sys.exit(0)
     get = get.replace(".", "")
     get += "$"
     print(get)
@@ -151,10 +155,14 @@ def receive_game():
         read = 0
         data_final = ""
         while read < 6:
-            data = socket_des.recv(buffer_size)
-            data = data.decode()
-            read += len(data)
-            data_final += data
+            try:
+                data = socket_des.recv(buffer_size)
+                data = data.decode()
+                read += len(data)
+                data_final += data
+            except:
+                print("you must end your game") #usunac przed oddaniem konczakowi,
+                sys.exit(0)
         if len(data_final) % 6 == 0:
             final_list = []
             for _ in range(int(len(data_final) / 6)):
@@ -163,14 +171,17 @@ def receive_game():
             print(final_list)
             print(my_id)
             for f in final_list:
-                if f[0] == "8":  # hangman
+                if "!" in f:   #jezeli otrzyma informacje o błędzie
+                    print("server has got some problem we have to end the game")
+                    sys.exit(0)
+                elif f[0] == "8":  # hangman
                     if f[2] == ".":
                         player_hang_score_arr[int(f[1])][1] = int(f[3])
                     else:
                         player_hang_score_arr[int(f[1:2])][1] = int(f[3])
                     if f[1:2] == my_id or f[1] == my_id:
                         hangman = int(f[3])
-                elif f[0] == "9": # literka
+                elif f[0] == "9":  # literka
                     if f[2] == ".":
                         choosen.append(f[1])
                         player_hang_score_arr[int(f[1])][2] += word1.count(f[1])
@@ -204,8 +215,11 @@ def receive_data():
     decoded = ""
     while connected:
         while decoded.find("$$") == -1:
-            dataFromServer = s.recv(5);
-            decoded = dataFromServer.decode()
+            try:
+                dataFromServer = s.recv(5);
+                decoded = dataFromServer.decode()
+            except:
+                sys.exit(0)
         decoded = decoded[:-2]
         if decoded == "200":
             print("nick zajety podaj inny\n")
@@ -241,7 +255,7 @@ def receive_data():
             # receive_ids(socket_des)
         elif decoded == "777":
             go = False
-        elif decoded == "XXX":
+        elif "!" in decoded:
             go = False
 
         elif "60" in decoded:
@@ -255,10 +269,10 @@ def receive_data():
             vote[1] = True
             t1.start()
             while True:
-                if letter_realtime[1]:
-                    send_data(s, letter_realtime[0])
+                if letter_realtime[1]:  # jezeli jest zgloszona literka do wysylanie
+                    send_data(s, letter_realtime[0])  # wysyla literke
                     print("wyslalo literke")
-                    letter_realtime[1] = False
+                    letter_realtime[1] = False  # brak zgloszonej literki
             # print("Wchodzi")
             # receive_game(s)
             # print("WESZLO do receve")
@@ -292,7 +306,6 @@ class Button_server():
             font2 = pg.font.SysFont('comicsans', 20)
             text = font.render(self.text, 1, (0, 0, 0))
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15))
-
 
             text = font2.render(roomStatus[self.status], 1, (0, 0, 0))
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 80))
@@ -381,6 +394,7 @@ class InputBox:
         pg.draw.rect(screen, self.color, self.rect, 2)
 
 
+# obiekty GUI
 serversButtons = []
 serversButtons.append(Button_server(colors["gray"], 130, 150, 130, 130, "Room 1", 1))
 serversButtons.append(Button_server(colors["gray"], 330, 150, 130, 130, "Room 2", 2))
@@ -393,8 +407,8 @@ poczekalnia_button = Button(colors["lightgreen"], 70, 300, 130, 60, "Play again"
 nick = InputBox(100, 500, 140, 32)
 
 word = ""
-choosen = []
-images = []
+choosen = []  # wybrane literki
+images = []  # zdjecia hangmanow
 
 for i in range(7):
     image = pg.image.load("images/images/hangman" + str(i) + ".png")
@@ -420,17 +434,18 @@ t.daemon = True
 t1 = threading.Thread(target=receive_game)
 t1.daemon = True
 
+
 def menu():
     global screen
     global booked_room
     run = True
     while run:
-        for e in pg.event.get():
+        for e in pg.event.get():  # pętla po zdarzeniach - klkniecia, naciścnięcia
             if e.type == pg.QUIT:
                 run = False
                 # pg.quit()
                 # quit()
-            if e.type == pg.MOUSEMOTION:
+            if e.type == pg.MOUSEMOTION:  # najechanie na przycisk
                 for room in serversButtons:
                     if room.isOver(pg.mouse.get_pos()):
                         room.color = colors["lightgray"]
@@ -441,17 +456,18 @@ def menu():
                     for room in serversButtons:
                         if room.isOver(pg.mouse.get_pos()) and room.status == 0 and room.players < 5:
                             booked_room[0] = room.id
-                            connect(ip_addr,port)
+                            connect(ip_addr, port)
                             pg.time.delay(500);
                             if booked_room[1] == True:
-                                poczekalnia()
+                                poczekalnia()  # oczekiwianie na pozostalych graczy
 
                             screen = pg.display.set_mode((800, 600))
                     if exit_button.isOver(pg.mouse.get_pos()):
+                        s.close()   #gdy exit zamknij deskryptor
                         run = False
                         # pg.quit()
                         # quit()
-            nick.handle_event(e)
+            nick.handle_event(e)  # aktualizowanie wpisywania nicku
         nick.update()
         screen.blit(bg, (0, 0))
         nick.draw(screen)
@@ -464,6 +480,7 @@ def menu():
 
         # pg.display.flip()
         pg.display.update()
+
 
 def poczekalnia():
     global screen
@@ -497,7 +514,7 @@ def poczekalnia():
                         while not vote[1]:
                             pass
                         game()
-                        #run = False
+                        # run = False
                     if exit2_button.isOver(pg.mouse.get_pos()):
                         run = False
 
@@ -525,7 +542,7 @@ def game():
                 screen.blit(text, (x - text.get_width() / 2, y - text.get_height() / 2))
 
         display_word = ""
-        for letter in word:
+        for letter in word:  # wyswietlanie hasla
             if letter in choosen:
                 display_word += letter + " "
             else:
@@ -533,12 +550,13 @@ def game():
         text = WORD_FONT.render(display_word, 1, colors["black"])
         screen.blit(text, (round(WIDTH / 2) - 50, 50))
 
-        # gracze
+        # gracze wyswietlnie i ich bledy
         text = LETTER_FONT.render("Players fails:", 1, colors["black"])
         screen.blit(text, (50, 300))
-        cord_y=370
+        cord_y = 370
         for i in id_nick:
-            text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][1]) + " / 6", 1, colors["black"])
+            text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][1]) + " / 6", 1,
+                                      colors["black"])
             screen.blit(text, (50, cord_y))
             cord_y += 50
         for e in pg.event.get():
@@ -550,28 +568,27 @@ def game():
                 for letter in letters:
                     x, y, ltr, vis = letter
                     distance = math.sqrt((x - m_x) ** 2 + (y - m_y) ** 2)
-                    if distance < RADIUS and letter[3] == True and hangman < 6:
-                        letter[3] = False
-                        letter_realtime[0] = ltr
+                    if distance < RADIUS and letter[
+                        3] == True and hangman < 6:  # jeli literka jest widzialna i mozesz jeszcze grac
+                        letter[3] = False  # literka jest niewidoczna
+                        letter_realtime[0] = ltr  # moze wsylac literke
                         letter_realtime[1] = True
         counter = 0
         for player in player_hang_score_arr:
             id, hang, score = player
             if hang == 6:
                 counter += 1
-        #print("Wyswietlone slowo  " + display_word)
-        #print("Znikaace slowo  " + word1)
-        if len(player_hang_score_arr) - counter < 2 or word1 == "":
+        # print("Wyswietlone slowo  " + display_word)
+        # print("Znikaace slowo  " + word1)
+        if len(player_hang_score_arr) - counter < 2 or word1 == "":  # skonczyla cale slowo sie uzupelnilo
             end = True
 
         if end:
             reset_game()
             run = False
-            results()
+            results()  # pokazuje okienko z wynikiem
 
         pg.display.update()
-
-
 
 
 def results():
@@ -588,7 +605,8 @@ def results():
         screen.blit(text, (round(p_width / 2) - 90, 40))
         cord_y = 90
         for i in id_nick:
-            text = LETTER_FONT.render(str(id_nick[i]) +":   " + str(player_hang_score_arr[int(i)][2]), 1, colors["black"])
+            text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][2]), 1,
+                                      colors["black"])
             screen.blit(text, (50, cord_y))
             cord_y += 40
         exit3_button.draw(screen)
@@ -605,7 +623,9 @@ def results():
                     if poczekalnia_button.isOver(pg.mouse.get_pos()):
                         poczekalnia()
                         run = False
+                        s.close()
                     if exit3_button.isOver(pg.mouse.get_pos()):
+                        s.close()
                         run = False
 
         pg.display.update()
@@ -626,7 +646,3 @@ try:
 except KeyboardInterrupt:  # obsluga ctr+C
     s.close()
     sys.exit(0)
-
-
-
-
