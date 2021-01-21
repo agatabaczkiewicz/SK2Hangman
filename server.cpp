@@ -33,6 +33,7 @@ int rooms[3][5];    //deskryptory wszystkich graczy
 int ids[3][5];		//id_wszytskich graczy
 int points[3][5];                   //punkty wszystkich graczy
 int id=0;
+int notyou[3]{0,0,0};
 int ask[3]{0,0,0};                // pomocniczy licznik do ankiety
 int players[3]{0,0,0};           //liczba zalogowanych graczy w poszczegolnym pokoju
 int game[3]{0,0,0}; //czy gra zaczela sie
@@ -82,6 +83,7 @@ bool check_nicks(string s){
 void init(){
 	for(int i=0;i<3;i++){
 		words[i]="0";
+		done_letter[i]="3";
 		for(int j=0;j<5;j++){
 			rooms[i][j]=0;
 			points[i][j]=0;
@@ -113,22 +115,33 @@ void init(){
 
 }
 
-int check_in_word(char* letter, string word){
+int check_in_word(char* letter, string word,int room){
 	
 	string let(letter,3);
 	let=let.substr(0,1);
 	string w=word;
 	int score=0;
+	//cout<<let<<" "<<word<<endl;
 	while(w.find(let)!=string::npos){
 		
-		w=w.substr(w.find(let));
-		w=w.substr(1);
-		score++;
-		
-
-
+				w=w.substr(w.find(let));
+				w=w.substr(1);
+				score++;
+	
 	}
-	return score;  //0 - nie bylo litery-0pkt, >0 punkt za kazda odkryta litere
+	if(done_letter[room].find(let)!=string::npos){ //byla juz taka litera
+		cout<<"r0"<<endl;
+		return 0;
+	}
+	else if (score==0){
+		cout<<"r-1"<<endl;
+		return -1;
+	}
+	else{
+	done_letter[room]+=let;
+	cout<<"rs"<<endl;
+	return score;  //-1 - nie bylo litery-0pkt, > punkt za kazda odkryta litere
+	}
 }
 
 string get_word(string filename,int num_lines){
@@ -184,12 +197,42 @@ for(int i=0;i<15;i++){
 return win_id;
 }
 
+void clean_after_game(int nr_room){
+
+	lost[nr_room]=0;
+	players[nr_room]=0;
+	ask[nr_room]=0;
+	game[nr_room]=0;
+	wait[nr_room]=0;
+	x[nr_room]=0;
+	guess[nr_room]=0;
+	words[nr_room]="0";
+	players[nr_room]=0;
+	for(int i=0;i<5;i++){
+		rooms[nr_room][i]=0;
+		points[nr_room][i]=0;
+		if(ids[nr_room][i]!=99){
+			for(int nick=1;nick<(int)nicks.size();nick++){
+				if (nicks[nick]==to_string(ids[nr_room][i])){
+					nicks.erase(nicks.begin()+nick-1,nicks.begin()+nick); //usuwa nick i idik z listy
+				}
+			}
+		}
+		///threads[ids[nr_room][i]].detach(); ????????????
+		id_queue.push(ids[nr_room][i]); //idik powraca na liste dostepnych idikow
+		ids[nr_room][i]=99;
+	}
+	
+	
+
+
+}
+
 void ThreadBehavior(thread_data_t *t_data){
 	struct thread_data_t *th_data = (struct thread_data_t*)t_data;
 	bool wakeup=true;
 	int read_int,check,send_int,j,n;
 	bool h;
-	int u=0;
 	cout<<(*th_data).nr_deskryptora1;
 		unique_lock<mutex> lck(mutex_games[(*th_data).pokoj],defer_lock);
 		lck.lock();
@@ -282,7 +325,7 @@ void ThreadBehavior(thread_data_t *t_data){
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		
-		while(h){
+	while(h){
 		if(x[(*th_data).pokoj]==0||x[(*th_data).pokoj]==2){
 			
 			cout<<endl<<"dupa "<<(*th_data).numer<<endl;
@@ -386,18 +429,17 @@ void ThreadBehavior(thread_data_t *t_data){
 	
 	if(words[(*th_data).pokoj]=="0"){
 		words[(*th_data).pokoj]=get_word(wordsfile,number_of_words);
+		cout<<words[(*th_data).pokoj]<<endl;
 		count_letters((*th_data).pokoj,words[(*th_data).pokoj]); //liczy tylko litery bez spacji od razu zapisuje wynik do guess
 		string s=words[(*th_data).pokoj];
 
-		//words[(*th_data).pokoj].replace(words[(*th_data).pokoj].begin(),words[(*th_data).pokoj].end()," ",""); //odjecie spacji
-		//guess[(*th_data).pokoj]=words[(*th_data).pokoj].length(); //trzeba by jakos odjac spacje
-
+	
 		s.append(";");
 		for(int i=0;i<5;i++){
 			if(ids[(*th_data).pokoj][i]!=99){
 				s.append(to_string(ids[(*th_data).pokoj][i]));
 				s.append(";");
-				for(int nick=0;nick<nicks.size();nick++){
+				for(int nick=0;nick<(int)nicks.size();nick++){
 					if (nicks[nick]==to_string(ids[(*th_data).pokoj][i])){
 						s.append(nicks[nick-1]);
 						s.append(";");
@@ -427,25 +469,18 @@ void ThreadBehavior(thread_data_t *t_data){
 		
 	}
 	}
-	//mutex_games[(*th_data).pokoj].unlock();
-	/*if(write((*th_data).nr_deskryptora1, "777$$", 5)<0){//spytaj czy czekamy jeszcze za kims
-			cout<<"write error"<<endl; 
-		}*/
+	
 
 	cout<<"kurwa";
-	//oczekiwanie na potwierdzenie - uzyc ask
-	// glowna petla gry - wysylanie i odbieranie wiadomosci
+	
 	
     while(players[(*th_data).pokoj]>1){
 	//cout<<"gra"<<endl;
 	n = 0;
 	
         read_int = read((*th_data).nr_deskryptora1, &(*th_data).data2, 3*sizeof(char));
-	cout<<endl<<(*th_data).data2<<endl;
-        n += read_int;
-	while(n != 3){
-	
-	if(read_int == -1){
+		if(read_int == -1){
+				cout<<"blad";
                 char buf[6] = {'!', '!', '!', '!', '!', '!'};                  // problem serwera w odczytnaiu danych
                 n=0;
                 while(n < 6){        
@@ -454,23 +489,59 @@ void ThreadBehavior(thread_data_t *t_data){
                     if(send_int == -1){
                         write((*th_data).nr_deskryptora1, "!", 1); 
                         printf("server has an unexpected problem\n"); 
-			
+						players[(*th_data).pokoj] -=1;
+						close((*th_data).nr_deskryptora1);
                         threads[(*th_data).numer].detach();
-			return;
+						return;
                     }
-                } 
+                }
+			players[(*th_data).pokoj] -=1;
+			close((*th_data).nr_deskryptora1);
+			threads[(*th_data).numer].detach();
+			return;
+			 
+		}  
+	cout<<endl<<read_int<<(*th_data).data2<<" "<<(*th_data).numer<<endl;
+        n += read_int;
+	while(n != 3){
+	
+	if(read_int == -1){
+				cout<<"blad";
+                char buf[6] = {'!', '!', '!', '!', '!', '!'};                  // problem serwera w odczytnaiu danych
+                n=0;
+                while(n < 6){        
+                    send_int = write((*th_data).nr_deskryptora1, &buf[n], strlen(buf)-n);
+                    n += send_int;
+                    if(send_int == -1){
+                        write((*th_data).nr_deskryptora1, "!", 1); 
+                        printf("server has an unexpected problem\n"); 
+						players[(*th_data).pokoj] -=1;
+						close((*th_data).nr_deskryptora1);
+                        threads[(*th_data).numer].detach();
+						return;
+                    }
+                }
+			players[(*th_data).pokoj] -=1;
+			close((*th_data).nr_deskryptora1);
+			threads[(*th_data).numer].detach();
+			return;
+			 
 		}     
 		read_int = read((*th_data).nr_deskryptora1, &(*th_data).data2[n], 3*sizeof(char));
             	n += read_int;
 	
 	}
-	mutex_games[(*th_data).pokoj].lock();
+	
 	cout<<"przed check"<<endl;
-	check = check_in_word((*th_data).data2, words[(*th_data).pokoj]);
+if(guess[(*th_data).pokoj]>0 || lost[(*th_data).pokoj]!=players[(*th_data).pokoj] ){ //czy jeszcze warto sprawdzac
+		mutex_games[(*th_data).pokoj].lock();
+		check = check_in_word((*th_data).data2, words[(*th_data).pokoj],(*th_data).pokoj);
+		mutex_games[(*th_data).pokoj].unlock();
+	
 	cout<<"check: "<<check<<endl;
-	guess[(*th_data).pokoj]-=check;
-	mutex_games[(*th_data).pokoj].unlock();
-	if(check==0){
+	
+	
+	if(check == -1){
 		cout<<"hangman+1"<<endl;
 		(*th_data).hangman+=1;	//masz kolejny poziom wisielca
 		string resu="8"; //kod wiadomosci
@@ -500,6 +571,7 @@ void ThreadBehavior(thread_data_t *t_data){
 	}
 	
 	else { //>0  // gra jeszcze nie skonczona wyslij sobie i innym gracza aktualizacje twojego wyniku
+		guess[(*th_data).pokoj]-=check;
 		string res((*th_data).data2,1); //litera
 		res.insert(0,"9"); //kod wiadomosci
 		res.append(to_string((*th_data).numer)); //nr id gracza
@@ -524,11 +596,23 @@ void ThreadBehavior(thread_data_t *t_data){
             		}        
 			}
 	}
-
+	}
 	if(guess[(*th_data).pokoj]<=0 || lost[(*th_data).pokoj]==players[(*th_data).pokoj] ){ //koniec gry lub //liczba graczy =liczbie wisielcow
-		int winner=result((*th_data).pokoj); //funkcja sprawdzajaca kto wygral
-		cout<<winner;
-		break;
+		//int winner=result((*th_data).pokoj); //funkcja sprawdzajaca kto wygral
+		cout<<"koniec "<<(*th_data).numer<<endl;
+		if(notyou[(*th_data).pokoj]==0){
+			notyou[(*th_data).pokoj]=1;
+			mutex_games[(*th_data).pokoj].lock();
+			clean_after_game((int)(*th_data).pokoj); //przygotowuje pokoj na nowa rozgrywke
+			mutex_games[(*th_data).pokoj].unlock();
+			cout<<"winner";
+			//threads[(*th_data).numer].detach();
+			break;
+		}
+		else{
+			//threads[(*th_data).numer].detach();
+			break;
+		}
 	}
 	
 	
@@ -536,6 +620,7 @@ void ThreadBehavior(thread_data_t *t_data){
    
 
 }
+	close((*th_data).nr_deskryptora1);
 	threads[(*th_data).numer].detach();
 }
 
@@ -668,6 +753,7 @@ while(1){
 					
 					
 					rooms[num][i]=connection_socket_descriptor;
+					notyou[num]=0;
 					id=id_queue.front();
 					id_queue.pop();
 					nicks.push_back(to_string(id));
