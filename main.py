@@ -51,6 +51,7 @@ letter_realtime = ['', False]
 score = 0
 word1 = ""
 end = False
+exit_alert = False
 
 player_hang_score_arr = []
 
@@ -148,6 +149,7 @@ def receive_game():
     global choosen
     global word1
     global my_id
+    global exit_alert
     global s
     socket_des = s
     while True:
@@ -173,25 +175,40 @@ def receive_game():
             for f in final_list:
                 if "!" in f:   #jezeli otrzyma informacje o błędzie
                     print("server has got some problem we have to end the game")
-                    sys.exit(0)
+                    exit_alert = True
+                    #sys.exit(0)
+                elif f[0] == "7":
+                    print("serwer potwierdza koniec gry")
+                    return
                 elif f[0] == "8":  # hangman
                     if f[2] == ".":
-                        player_hang_score_arr[int(f[1])][1] = int(f[3])
+                        for i in range(len(player_hang_score_arr)):
+                            if player_hang_score_arr[i][0] == f[1]:
+                                player_hang_score_arr[i][1] = int(f[3])
                     else:
-                        player_hang_score_arr[int(f[1:2])][1] = int(f[3])
+                        for i in range(len(player_hang_score_arr)):
+                            if player_hang_score_arr[i][0] == f[1:2]:
+                                player_hang_score_arr[i][1] = int(f[3])
+
                     if f[1:2] == my_id or f[1] == my_id:
                         hangman = int(f[3])
                 elif f[0] == "9":  # literka
                     if f[2] == ".":
                         choosen.append(f[1])
-                        player_hang_score_arr[int(f[1])][2] += word1.count(f[1])
+                        for i in range(len(player_hang_score_arr)):
+                            if player_hang_score_arr[i][0] == f[2]:
+                                player_hang_score_arr[i][2] += word1.count(f[1])
+
                         word1 = word1.replace(f[1], "")
                         if (f[2] == my_id):
                             score += word.count(f[1])
 
                     else:
                         choosen.append(f[1])
-                        player_hang_score_arr[int(f[2:3])][2] += word1.count(f[1])
+                        for i in range(len(player_hang_score_arr)):
+                            if player_hang_score_arr[i][0] == f[2:3]:
+                                player_hang_score_arr[i][2] += word1.count(f[1])
+
                         word1 = word1.replace(f[1], "")
                         if (f[2:3] == my_id):
                             score += word.count(f[1])
@@ -204,6 +221,7 @@ def receive_game():
             # return [("er", "01")]  # bad receive code
 
 
+
 def receive_data():
     global s
     global connected
@@ -211,6 +229,7 @@ def receive_data():
     global letter_realtime
     global player_hang_score_arr
     global my_id
+    global exit_alert
     go = True
     decoded = ""
     while connected:
@@ -258,6 +277,7 @@ def receive_data():
         elif decoded == "777":
             go = False
         elif "!" in decoded:
+            exit_alert = True
             go = False
 
         elif "60" in decoded:
@@ -480,7 +500,8 @@ def menu():
         exit_button.draw(screen)
         screen.blit(nick_init, (25, 505))
 
-        # pg.display.flip()
+        if exit_alert:
+            results(2)
         pg.display.update()
 
 
@@ -494,7 +515,7 @@ def poczekalnia():
     run = True
     while run:
         screen.fill(colors["white"])
-        text = WORD_FONT.render("POCZEKALNIA", 1, colors["black"])
+        text = WORD_FONT.render("Waiting room", 1, colors["black"])
         screen.blit(text, (round(p_width / 2) - 90, 50))
 
         text = LETTER_FONT.render(str(players) + " / 5 PLAYERS", 1, colors["red"])
@@ -524,6 +545,8 @@ def poczekalnia():
                         vote[0] = True
         if vote[1]:
             game()
+        if exit_alert:
+            results(2)
         pg.display.update()
 
 
@@ -560,8 +583,8 @@ def game():
         text = LETTER_FONT.render("Players fails:", 1, colors["black"])
         screen.blit(text, (50, 300))
         cord_y = 370
-        for i in id_nick:
-            text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][1]) + " / 6", 1,
+        for i in range(len(player_hang_score_arr)):
+            text = LETTER_FONT.render(id_nick[str(player_hang_score_arr[i][0])] + ":   " + str(player_hang_score_arr[i][1]) + " / 6", 1,
                                       colors["black"])
             screen.blit(text, (50, cord_y))
             cord_y += 50
@@ -574,8 +597,7 @@ def game():
                 for letter in letters:
                     x, y, ltr, vis = letter
                     distance = math.sqrt((x - m_x) ** 2 + (y - m_y) ** 2)
-                    if distance < RADIUS and letter[
-                        3] == True and hangman < 6:  # jeli literka jest widzialna i mozesz jeszcze grac
+                    if distance < RADIUS and letter[3] == True and hangman < 6:  # jeli literka jest widzialna i mozesz jeszcze grac
                         letter[3] = False  # literka jest niewidoczna
                         letter_realtime[0] = ltr  # moze wsylac literke
                         letter_realtime[1] = True
@@ -593,6 +615,8 @@ def game():
             reset_game()
             run = False
             results(1)  # pokazuje okienko z wynikiem
+        if exit_alert:
+            results(2)
 
         pg.display.update()
 
@@ -606,26 +630,32 @@ def results(option):
     p_height = 300
     run = True
     if option == 1:
+        screen.fill(colors["white"])
+        text = WORD_FONT.render("GAME RESULTS:", 1, colors["black"])
+        screen.blit(text, (round(p_width / 2) - 90, 40))
+        print(player_hang_score_arr)
+        player_hang_score_arr = sort_players(player_hang_score_arr)
+        cord_y = 90
+        print(player_hang_score_arr)
+        for i in range(len(player_hang_score_arr)):
+            if player_hang_score_arr[int(i)][1] == 6:
+                text = LETTER_FONT.render(
+                    str(id_nick[str(player_hang_score_arr[i][0])]) + ":   " + str(player_hang_score_arr[i][2]), 1,
+                    colors["red"])
+                screen.blit(text, (50, cord_y))
+            else:
+                text = LETTER_FONT.render(
+                    str(id_nick[str(player_hang_score_arr[i][0])]) + ":   " + str(player_hang_score_arr[i][2]), 1,
+                    colors["black"])
+                screen.blit(text, (50, cord_y))
+
+            cord_y += 40
+
+        exit3_button.draw(screen)
+
+        poczekalnia_button.draw(screen)
+
         while run:
-            screen.fill(colors["white"])
-            text = WORD_FONT.render("GAME RESULTS:", 1, colors["black"])
-            screen.blit(text, (round(p_width / 2) - 90, 40))
-            cord_y = 90
-            for i in id_nick:
-                if player_hang_score_arr[int(i)][1] == 6:
-                    text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][2]), 1, colors["red"])
-                    screen.blit(text, (50, cord_y))
-                else:
-                    text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][2]), 1, colors["black"])
-                    screen.blit(text, (50, cord_y))
-
-                cord_y += 40
-
-
-            exit3_button.draw(screen)
-
-            poczekalnia_button.draw(screen)
-
             for e in pg.event.get():
                 if e.type == pg.QUIT:
                     run = False
@@ -640,6 +670,7 @@ def results(option):
                         if exit3_button.isOver(pg.mouse.get_pos()):
                             s.close()
                             run = False
+                            quit()
 
             pg.display.update()
     else:
@@ -667,6 +698,19 @@ def results(option):
             pg.display.update()
 
 
+
+def sort_players(tab):
+    tab_full_hang = []
+    tab_winners = []
+    for i in range(len(tab)):
+        if tab[i][1]==6:
+            tab_full_hang.append(tab[i])
+        else:
+            tab_winners.append(tab[i])
+    tab_winners = sorted(tab_winners,key=lambda x: x[1], reverse=True)
+    tab_full_hangsorted = sorted(tab_full_hang,key=lambda x: x[1], reverse=True)
+
+    return tab_winners + tab_full_hang
 
 def reset_game():
     global hangman, choosen
