@@ -247,6 +247,7 @@ def receive_data():
             hang_dic[my_id] = 0
         elif "50" in decoded:
             vote[2] = '2'
+            vote[0] = False
             players = int(decoded[2])
             print(f"liczba graczy {players}")
             print("chcesz czekac za kolejnym graczem - 0 , gramy - 1\n")
@@ -611,10 +612,16 @@ def results(option):
             screen.blit(text, (round(p_width / 2) - 90, 40))
             cord_y = 90
             for i in id_nick:
-                text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][2]), 1,
-                                          colors["black"])
-                screen.blit(text, (50, cord_y))
+                if player_hang_score_arr[int(i)][1] == 6:
+                    text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][2]), 1, colors["red"])
+                    screen.blit(text, (50, cord_y))
+                else:
+                    text = LETTER_FONT.render(str(id_nick[i]) + ":   " + str(player_hang_score_arr[int(i)][2]), 1, colors["black"])
+                    screen.blit(text, (50, cord_y))
+
                 cord_y += 40
+
+
             exit3_button.draw(screen)
 
             poczekalnia_button.draw(screen)
