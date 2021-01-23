@@ -123,9 +123,13 @@ int check_in_word(char *letter, string word, int room)
 
 	string let(letter, 3);
 	let = let.substr(0, 1);
+	string hash="#";
 	string w = word;
 	int score = 0;
 	//cout<<let<<" "<<word<<endl;
+	if(let.find(hash)!= string::npos){
+		return -2;
+	}
 	while (w.find(let) != string::npos)
 	{
 
@@ -654,8 +658,11 @@ void ThreadBehavior(thread_data_t *t_data)
 			mutex_games[(*th_data).pokoj].unlock();
 
 			cout << "check: " << check << endl;
-
-			if (check == -1)
+			if(check == -2){
+				players[(*th_data).pokoj] -= 1;
+				break;
+			}
+			else if (check == -1)
 			{
 				cout << "hangman+1" << endl;
 				(*th_data).hangman += 1;				  //masz kolejny poziom wisielca
