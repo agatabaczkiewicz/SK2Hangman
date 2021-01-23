@@ -52,6 +52,7 @@ random_device rd;
 mt19937_64 generator;
 queue<int> id_queue;
 
+
 struct thread_data_t
 {
 	int nr_deskryptora1; // deskryptor powiązany z danym wątkiem
@@ -222,10 +223,11 @@ void clean_after_game(int nr_room)
 					nicks.erase(nicks.begin() + nick - 1, nicks.begin() + nick); //usuwa nick i idik z listy
 				}
 			}
+			id_queue.push(ids[nr_room][i]); //idik powraca na liste dostepnych idikow
+			ids[nr_room][i] = 99;
 		}
-		///threads[ids[nr_room][i]].detach(); ????????????
-		id_queue.push(ids[nr_room][i]); //idik powraca na liste dostepnych idikow
-		ids[nr_room][i] = 99;
+		
+		
 	}
 }
 
@@ -328,6 +330,8 @@ void ThreadBehavior(thread_data_t *t_data)
 			}
 			players[(*th_data).pokoj] -= 1;
 			h=false;
+			
+		
 			wait_for_others[(*th_data).pokoj].notify_all();
 			close((*th_data).nr_deskryptora1);
 			threads[(*th_data).numer].detach();
@@ -395,6 +399,7 @@ void ThreadBehavior(thread_data_t *t_data)
 			}
 			cout<<"po 4 bye bye"<<endl;
 			//players[(*th_data).pokoj] -= 1;
+			
 			close((*th_data).nr_deskryptora1);
 			wait_for_others[(*th_data).pokoj].notify_all();
 			cout<<"powiadomilem";
@@ -434,6 +439,7 @@ void ThreadBehavior(thread_data_t *t_data)
 				write((*th_data).nr_deskryptora1, "!$$", 3);
 				if(players[(*th_data).pokoj]==0)
 					clean_after_game((*th_data).pokoj);
+				
 				close((*th_data).nr_deskryptora1);
 				threads[(*th_data).numer].detach();
 				return;
@@ -539,14 +545,15 @@ void ThreadBehavior(thread_data_t *t_data)
 		game[(*th_data).pokoj] = 2;
 		//ask[(*th_data).pokoj]=0;
 
-		j = players[(*th_data).pokoj];
-		for (int i = 0; i < j; i++)
+		//j = players[(*th_data).pokoj];
+		for (int i = 0; i < 5; i++)
 		{
 			if (rooms[(*th_data).pokoj][i] != 0)
 			{
 				if (write(rooms[(*th_data).pokoj][i], "600$$", 5) < 0)
 				{ //zaczynamy gre
 					rooms[(*th_data).pokoj][i] = 0;
+					ids[(*th_data).pokoj][i]=99;
 					write(rooms[(*th_data).pokoj][i], "!$$", 3);
 					cout << "write error" << endl;
 				}
