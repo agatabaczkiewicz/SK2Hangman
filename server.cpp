@@ -807,21 +807,17 @@ void handleConnection(int connection_socket_descriptor, int id, int gdzie)
 	int room = gdzie;
 
 	mutex_players.unlock();
-
-	t_data[identyfikator].nr_deskryptora1 = connection_socket_descriptor;
+	//wypelnienie struktury danymi klienta
+	t_data[identyfikator].nr_deskryptora1 = connection_socket_descriptor;  
 	t_data[identyfikator].pokoj = room;
 	t_data[identyfikator].numer = identyfikator;
 	t_data[identyfikator].hangman = 0;
 
 
 	//cout<<"jestem w handle"<<endl;
-	threads[identyfikator] = thread(ThreadBehavior, &t_data[identyfikator]);
+	threads[identyfikator] = thread(ThreadBehavior, &t_data[identyfikator]); //rozpoczecie watku gracza 
 }
-void signal_handler(int sig)
-{
-	close(server_socket_descriptor);
-	exit(0);
-}
+
 
 int main(int argc, char *argv[])
 {
@@ -831,8 +827,7 @@ int main(int argc, char *argv[])
 	int listen_result;
 	char reuse_addr_val = 1;
 	struct sockaddr_in server_address;
-	//signal(SIGINT, signal_handler);
-	init();
+	init();                       //funkcja przygotowujaca serwer do gry
 	signal(SIGPIPE, SIG_IGN);
 
 	//inicjalizacja gniazda serwera
@@ -877,13 +872,13 @@ int main(int argc, char *argv[])
 			cout << "write error" << endl;
 		}
 		mutex_players.lock();
-		ask_nick(connection_socket_descriptor);
+		ask_nick(connection_socket_descriptor);  //obsluga dostania nicku od gracza
 		bool room = true;
 		//wybieranie pokoju
 		while (room)
 		{
 			char data[20]{};
-			int len = read(connection_socket_descriptor, data, sizeof(data) - 1);
+			int len = read(connection_socket_descriptor, data, sizeof(data) - 1);  //odczyt pokoju do ktorego gracz chce sie dostac
 			if (len < 1)
 				break;
 			string s(data);
@@ -893,12 +888,12 @@ int main(int argc, char *argv[])
 			int num = stoi(s);
 			num--;
 			cout << num << endl;
-			if (rooms[num][0] * rooms[num][1] * rooms[num][2] * rooms[num][3] * rooms[num][4] * rooms[num][5] == 0 and game[num] == 0)
+			if (rooms[num][0] * rooms[num][1] * rooms[num][2] * rooms[num][3] * rooms[num][4] * rooms[num][5] == 0 and game[num] == 0) // jezeli jest miejsce w pokoju i gra w nim sie //////                                                                                                          //jeszcze nie rozpoczela
 			{
 
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < 5; i++)  //szukamy wolnego miejsca
 				{
-					//mutex
+					
 
 					if (rooms[num][i] == 0)
 					{
@@ -920,13 +915,13 @@ int main(int argc, char *argv[])
 							si.append(to_string(id));
 						si.append("$$");
 						strcpy(cs, si.c_str());
-						if (write(connection_socket_descriptor, &cs, 5) < 0)
+						if (write(connection_socket_descriptor, &cs, 5) < 0)  //przeslanie komunikatu ze jestes w pokoju i twojego id
 						{ //jestes dopisany do pokoju
 							cout << "write error" << endl;
 						}
 						players[num] += 1; //zwiekszenie luczby licznika graczy w pokoju
 						room = false;
-						handleConnection(connection_socket_descriptor, id, num);
+						handleConnection(connection_socket_descriptor, id, num);  //tworzenie struktury, watku klienta 
 
 						//x=false;
 						break;
