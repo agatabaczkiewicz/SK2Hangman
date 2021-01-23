@@ -7,6 +7,7 @@ import time
 import signal
 import warnings
 import pygame as pg
+import random
 warnings.simplefilter("ignore")
 s = socket.socket()
 connected = False
@@ -52,6 +53,7 @@ score = 0
 word1 = ""
 end = False
 exit_alert = False
+get_another = True
 
 player_hang_score_arr = []
 
@@ -73,7 +75,7 @@ def signal_handler(signal, frame):
 def connect(ip_addr, port):
     global connected
     global s
-    if connected == False:
+    if not connected:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((ip_addr, port))
@@ -230,6 +232,7 @@ def receive_data():
     global player_hang_score_arr
     global my_id
     global exit_alert
+    global get_another
     go = True
     decoded = ""
     while connected:
@@ -242,21 +245,29 @@ def receive_data():
         decoded = decoded[:-2]
         if decoded == "200":
             print("nick zajety podaj inny\n")
-            pg.time.delay(5000)
+            nick.rand_set()
             send_data(s, nick.nick)
 
         elif decoded == "000":
+            if nick.nick == "":
+                nick.empty_nick()
             send_data(s, nick.nick)
 
         elif decoded == "100":
             print("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-3")
             send_data(s, str(booked_room[0]))
             print(booked_room[0])
-            booked_room[1] = True
         elif decoded == "400":
             print("Pokoj juz pelny")
+            get_another = False
+            while not get_another:
+                pass
+            send_data(s, str(booked_room[0]))
+            get_another = True
         elif decoded[0] == "3":
             print(f"witaj w pok\n")
+            print(booked_room[0])
+            booked_room[1] = True
             print(decoded)
             if decoded[1] == "0":
                 my_id = decoded[2]
@@ -277,6 +288,10 @@ def receive_data():
         elif decoded == "777":
             go = False
         elif "!" in decoded:
+            exit_alert = True
+            go = False
+        elif "*" in decoded:
+            print("za dlugo czekalem")  #############################################################
             exit_alert = True
             go = False
 
@@ -414,6 +429,13 @@ class InputBox:
         screen.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
         # Blit the rect.
         pg.draw.rect(screen, self.color, self.rect, 2)
+    def rand_set(self):
+        anonim_num = random.randint(0,10)
+        self.text = self.text + str(anonim_num)
+        self.nick = self.text
+    def empty_nick(self):
+        self.text = "Anonim"
+        self.nick = self.text
 
 
 # obiekty GUI
@@ -460,6 +482,7 @@ t1.daemon = True
 def menu():
     global screen
     global booked_room
+    global get_another
     run = True
     while run:
         for e in pg.event.get():  # pętla po zdarzeniach - klkniecia, naciścnięcia
@@ -479,9 +502,12 @@ def menu():
                         if room.isOver(pg.mouse.get_pos()) and room.status == 0 and room.players < 5:
                             booked_room[0] = room.id
                             connect(ip_addr, port)
+                            if not get_another:
+                                get_another = True
                             pg.time.delay(500);
                             if booked_room[1] == True:
                                 poczekalnia()  # oczekiwianie na pozostalych graczy
+
 
                             screen = pg.display.set_mode((800, 600))
                     if exit_button.isOver(pg.mouse.get_pos()):
@@ -530,6 +556,7 @@ def poczekalnia():
             if e.type == pg.QUIT:
                 run = False
                 pg.QUIT
+                s.close()
                 quit()
             if e.type == pg.MOUSEBUTTONDOWN:
                 if e.button == 1:
@@ -591,6 +618,7 @@ def game():
         for e in pg.event.get():
             if e.type == pg.QUIT:
                 pg.QUIT
+                s.close()
                 quit()
             if e.type == pg.MOUSEBUTTONDOWN:
                 m_x, m_y = pg.mouse.get_pos()
@@ -614,6 +642,7 @@ def game():
         if end:
             reset_game()
             run = False
+            send_data(s, "#$$")
             results(1)  # pokazuje okienko z wynikiem
         if exit_alert:
             results(2)
