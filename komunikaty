@@ -1,7 +1,10 @@
-0- akceptacja nowego polaczenia, sukces dodania nicku
-1-akceptacja nicku, prosba o podanie pokoju
-2- nick zajety, podaj inny
-3-witaj w pokoju
-4-pokoj zajete
-5-czekac na kogos jeszcze
-6-zaczynamy gre
+000$$- akceptacja nowego polaczenia, sukces dodania nicku
+100$$-akceptacja nicku, prosba o podanie pokoju
+200$$- nick zajety, podaj inny
+3/nr id- dwie cyfry/$$-witaj w pokoju
+400$$-pokoj zajete
+500$$-czekac na kogos jeszcze
+600$$-zaczynamy gre
+
+8   $$-blad - zwiekszony poziom wisielca schemat wiadomosci: 8 id hangman_level $$ - 6 znakow
+9   $$ - nowa odkryta litera - wschemat wiadomosci 9 ID litera $$ - 6 znakow
