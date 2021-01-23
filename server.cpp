@@ -34,7 +34,8 @@ int rooms[3][5];	//deskryptory wszystkich graczy
 int ids[3][5];		//id_wszytskich graczy
 int id = 0;
 int notyou[3]{0, 0, 0};
-int ask[3]{0, 0, 0};	 // pomocniczy licznik do ankiety
+int ask[3]{0, 0, 0};
+int answer[3]{0, 0, 0};	 // pomocniczy licznik do ankiety
 int players[3]{0, 0, 0}; //liczba zalogowanych graczy w poszczegolnym pokoju
 int game[3]{0, 0, 0};	 //czy gra zaczela sie
 string words[3];
@@ -196,6 +197,7 @@ void clean_after_game(int nr_room)
 	lost[nr_room] = 0;
 	players[nr_room] = 0;
 	ask[nr_room] = 0;
+	answer[nr_room] = 0;
 	game[nr_room] = 0;
 	wait[nr_room] = 0;
 	x[nr_room] = 0;
@@ -298,21 +300,36 @@ void ThreadBehavior(thread_data_t *t_data)
 
 	h = true;
 
-	if (rooms[(*th_data).pokoj][4] != 0)
+	if (players[(*th_data).pokoj] == 5)
 	{ //jest 5 graczy nic nie trzeba robic GRAMY
 
-		if (wait[(*th_data).pokoj] != 0)
+		while (wait[(*th_data).pokoj] != answer[(*th_data).pokoj])//(players[(*th_data).pokoj] - 1)) //czeka dopoki wszyscy nie odpowiedza na wczesnijesze pytanie
+		{
+			continue;
+		}
+		if (game[(*th_data).pokoj] == 0)
 		{ //jezeli  ktos czeka na ciebie
+			cout<<"5 powiadamia"<<endl;
 			x[(*th_data).pokoj] = 1;
 			wait_for_others[(*th_data).pokoj].notify_all(); //poinformuj ze jestes i mozemy grac
 		}
 
 		else if (game[(*th_data).pokoj] != 0)
 		{
-			players[(*th_data).numer] -= 0;
+			cout<<"5 bye bye"<<endl;
+			if (write((*th_data).nr_deskryptora1, "XXX$$", 5) < 0)
+			{ //sorki inni juz graja
+				cout << "write error" << endl;
+				write((*th_data).nr_deskryptora1, "!$$", 3);
+			}
+			players[(*th_data).pokoj] -= 1;
+			h=false;
+			wait_for_others[(*th_data).pokoj].notify_all();
+			close((*th_data).nr_deskryptora1);
 			threads[(*th_data).numer].detach();
 			return;
 		}
+		
 
 		h = false;
 		game[(*th_data).pokoj] = 1;
@@ -324,11 +341,19 @@ void ThreadBehavior(thread_data_t *t_data)
 	{ //4 gracz zeruje licznik, dla ponownego pytania czy czekamy za 5
 		cout << "czwarty jestem" << endl;
 
-		while (wait[(*th_data).pokoj] != (players[(*th_data).pokoj] - 1)) //czeka dopoki wszyscy nie odpowiedza na wczesnijesze pytanie
+		while (wait[(*th_data).pokoj] != answer[(*th_data).pokoj]) //czeka dopoki wszyscy nie odpowiedza na wczesnijesze pytanie
 		{
 			continue;
 		}
-		if (game[(*th_data).pokoj] == 0) //pozostala trojka graczy nie zaczela jeszcze gry i czekaja na czwartego
+		cout<<endl<<"po while"<<endl;
+		if(players[(*th_data).pokoj]==5 && game[(*th_data).pokoj] == 0){
+			cout<<"if==5"<<endl;
+			x[(*th_data).pokoj] = 1;
+			wait[(*th_data).pokoj]++;
+			answer[(*th_data).pokoj]++;
+			h=false;
+		}
+		else if (game[(*th_data).pokoj] == 0) //pozostala trojka graczy nie zaczela jeszcze gry i czekaja na czwartego
 		{
 			char buf[5];
 			string mes = "50";								  //kod wiadomosci
@@ -351,18 +376,24 @@ void ThreadBehavior(thread_data_t *t_data)
 				 << (*th_data).nr_deskryptora1 << endl;
 			x[(*th_data).pokoj] = 2;
 			ask[(*th_data).pokoj] = 0;
+			answer[(*th_data).pokoj] =0;
 			wait[(*th_data).pokoj] = 0;
 			wait_for_others[(*th_data).pokoj].notify_all();
 		}
-		else //pozostala trojka graczy postanowila gracz gracz czwarty konczy swoja gre
+		else if(game[(*th_data).pokoj]>0) //pozostala trojka graczy postanowila gracz gracz czwarty konczy swoja gre
 		{
+			cout<<"4 bye bye"<<endl;
+			players[(*th_data).pokoj] -= 1;
 			if (write((*th_data).nr_deskryptora1, "XXX$$", 5) < 0)
 			{ //sorki inni juz graja
 				cout << "write error" << endl;
 				write((*th_data).nr_deskryptora1, "!$$", 3);
 			}
-			players[(*th_data).pokoj] -= 1;
+			cout<<"po 4 bye bye"<<endl;
+			//players[(*th_data).pokoj] -= 1;
 			close((*th_data).nr_deskryptora1);
+			wait_for_others[(*th_data).pokoj].notify_all();
+			cout<<"powiadomilem";
 			threads[(*th_data).numer].detach();
 			return;
 		}
@@ -391,6 +422,7 @@ void ThreadBehavior(thread_data_t *t_data)
 
 			cout << endl
 				 << "dupa " << (*th_data).numer << endl;
+			answer[(*th_data).pokoj]+=1;
 			read_int = read((*th_data).nr_deskryptora1, &(*th_data).data, 3 * sizeof(char));
 			if (read_int < 1){
 				cout<<"read_error"<<endl;
@@ -414,7 +446,7 @@ void ThreadBehavior(thread_data_t *t_data)
 		else
 			break;
 
-		if (ask[(*th_data).pokoj] > (players[(*th_data).pokoj] / 2))
+		if (ask[(*th_data).pokoj] > (answer[(*th_data).pokoj] / 2))
 		{ // wiekszosc graczy woli grac no to gramy bez czekania GRAMY
 			game[(*th_data).pokoj] = 1;
 
@@ -424,7 +456,7 @@ void ThreadBehavior(thread_data_t *t_data)
 			cout << "wychodze" << endl;
 			break;
 		}
-		else if (rooms[(*th_data).pokoj][0] * rooms[(*th_data).pokoj][1] * rooms[(*th_data).pokoj][2] * rooms[(*th_data).pokoj][3] * rooms[(*th_data).pokoj][4] != 0)
+		/*else if (rooms[(*th_data).pokoj][0] * rooms[(*th_data).pokoj][1] * rooms[(*th_data).pokoj][2] * rooms[(*th_data).pokoj][3] * rooms[(*th_data).pokoj][4] != 0)
 		{ //pojawilo sie 5 graczy GRAMY
 			game[(*th_data).pokoj] = 1;
 			x[(*th_data).pokoj] = 1;
@@ -432,8 +464,8 @@ void ThreadBehavior(thread_data_t *t_data)
 
 			h = false;
 			break;
-		}
-		else if (ask[(*th_data).pokoj] <= (players[(*th_data).pokoj] / 2))
+		}*/
+		else if (ask[(*th_data).pokoj] <= (answer[(*th_data).pokoj] / 2))
 		{ //czekamy
 			cout << endl
 				 << "cccc " << (*th_data).numer << endl;
@@ -458,23 +490,38 @@ void ThreadBehavior(thread_data_t *t_data)
 
 	h = false;
 	cout << "wyszo" << (*th_data).numer << endl;
-
-	while (wait[(*th_data).pokoj] < players[(*th_data).pokoj])
+	if(rooms[(*th_data).pokoj][4] == (*th_data).nr_deskryptora1 ){
+		wait[(*th_data).pokoj]++;
+		answer[(*th_data).pokoj]++;
+	}
+	int c=0;
+	while (wait[(*th_data).pokoj] < answer[(*th_data).pokoj] )
 	{
 		unique_lock<mutex> lck2(mutex_games[(*th_data).pokoj]);
 		cout << "czekam" << endl;
+		c=1;
 		//sleep(5);
 		//lck.lock();
 		wait_for_others[(*th_data).pokoj].wait(lck2);
+
 	}
 
-	if (wait[(*th_data).pokoj] == players[(*th_data).pokoj])
+	if (wait[(*th_data).pokoj] == answer[(*th_data).pokoj] &&c==0 )
 	{
-
+		c=1;
 		wait_for_others[(*th_data).pokoj].notify_all();
 		cout << "wszyscy odpowiedzieli" << endl;
 
-		wait[(*th_data).pokoj] = 8;
+		//wait[(*th_data).pokoj] = 8;
+	}
+
+	while (answer[(*th_data).pokoj] < players[(*th_data).pokoj] )
+	{
+		unique_lock<mutex> lck5(mutex_games[(*th_data).pokoj]);
+		cout << "czekamy aby lub 5 sobie poszli" << endl;
+		//sleep(5);
+		//lck.lock();
+		wait_for_others[(*th_data).pokoj].wait(lck5);
 	}
 
 	//lck.unlock();
