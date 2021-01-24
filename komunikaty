@@ -1,10 +1,20 @@
+serwer -> klient
 000$$- akceptacja nowego polaczenia, sukces dodania nicku
 100$$-akceptacja nicku, prosba o podanie pokoju
 200$$- nick zajety, podaj inny
-3/nr id- dwie cyfry/$$-witaj w pokoju
-400$$-pokoj zajete
-500$$-czekac na kogos jeszcze
+3[nr id- dwie cyfry]$$-witaj w pokoju
+400$$-pokoj zajęty
+50[liczba_graczy]$$-pytanie czy czekamy jeszcze za kimś, czy jednak zaczynamy grę: komunikat 50 + liczba aktywnych graczy
+XXX$$ - inni gracze w pokoju już zaczeli grę, niestety musisz opuścić pokoj
 600$$-zaczynamy gre
+7777$$ - gra zakończyła się
+!$$ - błąd serwera
+*$$ - nie jest spełniony warunek min 3 graczy, żeby rozpocząc rozgrywkę, muszisz opusćić pokój
+8[   ]$$-blad - zwiekszony poziom wisielca schemat wiadomosci: 8 id hangman_level $$ - 6 znakow
+9[   ]$$ - nowa odkryta litera - wschemat wiadomosci 9 ID litera $$ - 6 znakow
 
-8   $$-blad - zwiekszony poziom wisielca schemat wiadomosci: 8 id hangman_level $$ - 6 znakow
-9   $$ - nowa odkryta litera - wschemat wiadomosci 9 ID litera $$ - 6 znakow
+klient -> serwer
+1$$- głos w ankiecie gramy
+0$$ - głos w ankiecie czekam
+#$$ - klient opuścił grę, rozłączył się
+[litera]$$ - przeslanie litery podczas rozgrywki
