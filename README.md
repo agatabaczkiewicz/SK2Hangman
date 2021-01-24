@@ -25,6 +25,6 @@ server.cpp - plik zawierający serwer, który tworzy i kontroluje grę i komunik
 config.txt - plik konfiguracyjny dla serwera. Zawiera: numer portu, nazwę pliku z hasłami i ilość słów  
 word.txt - plik z hasłami  
 main.py - plik zawierający kod tworzący program dla klienta. Tworzy GUI gry oraz komunikuje się z serwerem  
-configclient.txt - plik konfiguracyjny dla klienta. Zawiera: adres ip serwera i numer portu
+configclient.txt - plik konfiguracyjny dla klienta. Zawiera: adres ip serwera i numer portu  
 komunikaty - plik zawierający opis komunikat, co oznaczają komunikaty jakie serwer przesyła do klienta i klient do serwera
 
