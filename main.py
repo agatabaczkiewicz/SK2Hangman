@@ -61,11 +61,15 @@ player_hang_score_arr = []
 
 
 def init():
-    with open('configclient.txt', 'r') as reader:  # dodac ze jak nie ma pliku to wypierdziela
-        ip_add = reader.readline().rstrip()
-        p = int(reader.readline().rstrip())
-
-    return ip_add, p
+    global exit_alert
+    try:
+        with open('configclient.txt', 'r') as reader:
+            ip_add = reader.readline().rstrip()
+            p = int(reader.readline().rstrip())
+        return ip_add, p
+    except:
+        exit_alert = True
+        return '-', '-'
 
 def connect(ip_addr, port):
     global connected
@@ -129,7 +133,7 @@ def receive_word(socket_des):
             helper = s
             s = ""
             turn = 1
-        elif turn == 1 and sign != ";" and sign != "$":  # teraz nick
+        elif turn == 1 and sign != ";" and sign != "$":  # nick
             s += sign
         elif sign == ";" and turn == 1:
             id_nick[helper] = s
@@ -349,7 +353,6 @@ class Button():
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 15))
 
     def isOver(self, pos):
-        # Pos is the mouse position or a tuple of (x,y) coordinates
         if pos[0] > self.x and pos[0] < self.x + self.width:
             if pos[1] > self.y and pos[1] < self.y + self.height:
                 return True
@@ -369,7 +372,6 @@ class InputBox:
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
-                # Toggle the active variable.
                 self.active = not self.active
             else:
                 self.active = False
@@ -385,18 +387,14 @@ class InputBox:
                 else:
                     self.text += event.unicode
                     self.nick = self.text
-                # Re-render the text.
                 self.txt_surface = FONT.render(self.text, True, self.color)
 
     def update(self):
-        # Resize the box if the text is too long.
         width = max(200, self.txt_surface.get_width() + 10)
         self.rect.w = width
 
     def draw(self, screen):
-        # Blit the text.
         screen.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
-        # Blit the rect.
         pg.draw.rect(screen, self.color, self.rect, 2)
 
     def rand_set(self):
