@@ -16,5 +16,5 @@ XXX$$ - inni gracze w pokoju już zaczeli grę, niestety musisz opuścić pokoj
 klient -> serwer
 1$$- głos w ankiecie gramy
 0$$ - głos w ankiecie czekam
-#$$ - klient opuścił grę, rozłączył się
+#$$ - klient opuścił grę, rozłączył się lub potwierdza, że gra skończona
 [litera]$$ - przeslanie litery podczas rozgrywki
