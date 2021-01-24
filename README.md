@@ -26,5 +26,4 @@ config.txt - plik konfiguracyjny dla serwera. Zawiera: numer portu, nazwę pliku
 word.txt - plik z hasłami  
 main.py - plik zawierający kod tworzący program dla klienta. Tworzy GUI gry oraz komunikuje się z serwerem  
 configclient.txt - plik konfiguracyjny dla klienta. Zawiera: adres ip serwera i numer portu  
-komunikaty - plik zawierający opis komunikat, co oznaczają komunikaty jakie serwer przesyła do klienta i klient do serwera
-
+komunikaty - plik zawierający spis komunikatów, jakie serwer przesyła do klienta i klient do serwera, wraz z opisem co one oznaczają
