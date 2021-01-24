@@ -7,12 +7,12 @@ W tym celu konieczna jest edycja pliku configclient.txt na adres lokalny wirtual
   
 **Serwer:**  
 
-Pliki config.txt i word.txt muszą znajdować się w tym samym folderze co plik server.cpp. Aby skompilować należy w terminalu przejść do folderu z projektem, a następnie wpisać komendę: make server
+Pliki config.txt i word.txt muszą znajdować się w tym samym folderze co plik server.cpp. Aby skompilować, należy w terminalu przejść do folderu z projektem, a następnie wpisać komendę: make server
 
 **Klient:**
 
-Plik configclient.txt, bg-photo.png oraz folder images  muszą się znajdować w tym samym folderze co plik main.cpp.   
-Aby skompilować należy w terminalu przejść do folderu z projektem, a następnie wpisać komendę:  
+Plik configclient.txt, bg-photo.png oraz folder images  muszą się znajdować w tym samym folderze co plik main.py. Wymagane jest posiadanie zainstalowanej biblioteki pygame   
+Aby skompilować, należy w terminalu przejść do folderu z projektem, a następnie wpisać komendę:  
 -> jeżeli pracuje się na Linuxie: make client,  
 -> jeżeli pracuje się na Windowsie : python main.py  
 
