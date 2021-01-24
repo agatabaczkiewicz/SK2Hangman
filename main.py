@@ -587,7 +587,7 @@ def game():
         for e in pg.event.get():
             if e.type == pg.QUIT:
                 pg.QUIT
-                send_data(s, "#$$")
+                send_data(s, "#")
                 s.close()
                 quit()
             if e.type == pg.MOUSEBUTTONDOWN:
@@ -609,7 +609,7 @@ def game():
         if end:
             reset_game()
             run = False
-            send_data(s, "#$$")
+            send_data(s, "#")
             comments(1)  # pokazuje okienko z wynikiem
         if exit_alert:
             comments(2)
@@ -716,8 +716,8 @@ def sort_players(tab):
             tab_full_hang.append(tab[i])
         else:
             tab_winners.append(tab[i])
-    tab_winners = sorted(tab_winners,key=lambda x: x[1], reverse=True)
-    tab_full_hang = sorted(tab_full_hang,key=lambda x: x[1], reverse=True)
+    tab_winners = sorted(tab_winners,key=lambda x: x[2], reverse=True)
+    tab_full_hang = sorted(tab_full_hang,key=lambda x: x[2], reverse=True)
 
     return tab_winners + tab_full_hang
 
