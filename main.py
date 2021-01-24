@@ -67,13 +67,6 @@ def init():
 
     return ip_add, p
 
-
-def signal_handler(signal, frame):
-    s.close()
-    print("sss")
-    sys.exit(0)
-
-
 def connect(ip_addr, port):
     global connected
     global s
@@ -90,17 +83,16 @@ def connect(ip_addr, port):
                 thread1 = False
 
         except:
-            print("sth goes wrong")
             exit_alert = True
-            #sys.exit(1)
 
 
 def send_data(socket_des, message):
+    global exit_alert
     try:
         message += "$$"
         socket_des.send(message.encode())
     except:
-        print("send goes wrong")
+        exit_alert = True
 
 
 def receive_word(socket_des):
@@ -116,9 +108,7 @@ def receive_word(socket_des):
             get_part = dataFrom.decode()
             get += get_part
         except:
-            print("you must end your game")
             exit_alert = True
-            #sys.exit(0)
     get = get.replace(".", "")
     get += "$"
     print(get)
@@ -174,23 +164,17 @@ def receive_game():
                 read += len(data)
                 data_final += data
             except:
-                print("you must end your game") #usunac przed oddaniem konczakowi,
                 exit_alert = True
-                #sys.exit(0)
         if len(data_final) % 6 == 0:
             final_list = []
             for _ in range(int(len(data_final) / 6)):
                 final_list.append(data_final[:4])
                 data_final = data_final[6:]
             print(final_list)
-            print(my_id)
             for f in final_list:
                 if "!" in f:   #jezeli otrzyma informacje o błędzie
-                    print("server has got some problem we have to end the game")
                     exit_alert = True
-                    #sys.exit(0)
-                elif f[0] == "7":
-                    print("serwer potwierdza koniec gry")
+                elif f[0] == "7": #serwer potwierdza koniec gry
                     return
                 elif f[0] == "8":  # hangman
                     if f[2] == ".":
@@ -201,7 +185,6 @@ def receive_game():
                         for i in range(len(player_hang_score_arr)):
                             if player_hang_score_arr[i][0] == f[1:2]:
                                 player_hang_score_arr[i][1] = int(f[3])
-
                     if f[1:2] == my_id or f[1] == my_id:
                         hangman = int(f[3])
                 elif f[0] == "9":  # literka
@@ -212,7 +195,7 @@ def receive_game():
                                 player_hang_score_arr[i][2] += word1.count(f[1])
 
                         word1 = word1.replace(f[1], "")
-                        if (f[2] == my_id):
+                        if f[2] == my_id:
                             score += word.count(f[1])
 
                     else:
@@ -224,13 +207,11 @@ def receive_game():
                         word1 = word1.replace(f[1], "")
                         if (f[2:3] == my_id):
                             score += word.count(f[1])
-                            # print('my score' {score}\n")
 
         else:
             print("errr")
             print(data_final)
             print("\n")
-            # return [("er", "01")]  # bad receive code
 
 
 
@@ -257,7 +238,7 @@ def receive_data():
                     sys.exit(0)
             decoded = decoded[:-2]
             if decoded == "200":
-                print("nick zajety podaj inny\n")
+                print("nick zajety podaj inny")
                 nick.rand_set()
                 send_data(s, nick.nick)
 
@@ -266,45 +247,36 @@ def receive_data():
                     nick.empty_nick()
                 send_data(s, nick.nick)
 
-            elif decoded == "100":
-                print("podaj numer pokoju do ktorego chcesz sie przylaczyc 1-3")
+            elif decoded == "100": # pytanie o pokoj
                 send_data(s, str(booked_room[0]))
                 print(booked_room[0])
-            elif decoded == "400":
-                print("Pokoj juz pelny")
+            elif decoded == "400":  #pelny pokoj
                 get_another = False
                 while not get_another:
                     pass
                 send_data(s, str(booked_room[0]))
                 get_another = True
-            elif decoded[0] == "3":
-                print(f"witaj w pok\n")
+            elif decoded[0] == "3": # wejscie do pokoju
                 print(booked_room[0])
                 booked_room[1] = True
-                print(decoded)
                 if decoded[1] == "0":
                     my_id = decoded[2]
                 else:
                     my_id = decoded[1:]
-                print(my_id)
                 hang_dic[my_id] = 0
-            elif "50" in decoded:
+            elif "50" in decoded: # glosowanie
                 vote[2] = '2'
                 vote[0] = False
                 players = int(decoded[2])
-                print(f"liczba graczy {players}")
-                print("chcesz czekac za kolejnym graczem - 0 , gramy - 1\n")
                 while not vote[0]:
                     pass
                 send_data(s, vote[2])
-                # receive_ids(socket_des)
             elif decoded == "777":
                 go = False
             elif "!" in decoded:
                 exit_alert = True
                 go = False
-            elif "*" in decoded:
-                print("za dlugo czekalem")  #############################################################
+            elif "*" in decoded: # czeka za dlugo
                 exit_alert = True
                 go = False
             elif decoded == "XXX":  # gracz czwarty konczy gre bo pozostala trojka juz zaczela
@@ -312,29 +284,17 @@ def receive_data():
                 connected = False
                 go = False
 
-            elif "60" in decoded:
-                # nplayers=decoded[1] # przesylamy ogolna liczbe graczy
-                print("zaczynamy gre")
+            elif "60" in decoded: # poczatek gry
                 receive_word(s)
                 for key, value in hang_dic.items():
                     temp = [key, value, 0]
                     player_hang_score_arr.append(temp)
-                print(player_hang_score_arr[0][1])
                 vote[1] = True
                 t1.start()
                 while True:
                     if letter_realtime[1]:  # jezeli jest zgloszona literka do wysylanie
                         send_data(s, letter_realtime[0])  # wysyla literke
-                        print("wyslalo literke")
                         letter_realtime[1] = False  # brak zgloszonej literki
-                # print("Wchodzi")
-                # receive_game(s)
-                # print("WESZLO do receve")
-                # while True:
-                #	receive_game(socket_des);
-                # go = False
-
-
 
 class Button_server():
     def __init__(self, color, x, y, width, height, text, id):
@@ -350,7 +310,6 @@ class Button_server():
         self.status = 0
 
     def draw(self, screen, outline=None):
-        # Call this method to draw the button on the screen
         if outline:
             pg.draw.rect(screen, outline, (self.x - 2, self.y - 2, self.width + 4, self.height + 4), 0)
 
@@ -362,7 +321,6 @@ class Button_server():
             screen.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + 50))
 
     def isOver(self, pos):
-        # Pos is the mouse position or a tuple of (x,y) coordinates
         if pos[0] > self.x and pos[0] < self.x + self.width:
             if pos[1] > self.y and pos[1] < self.y + self.height:
                 return True
@@ -380,7 +338,6 @@ class Button():
         self.text = text
 
     def draw(self, screen, outline=None):
-        # Call this method to draw the button on the screen
         if outline:
             pg.draw.rect(screen, outline, (self.x - 2, self.y - 2, self.width + 4, self.height + 4), 0)
 
@@ -411,13 +368,11 @@ class InputBox:
 
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
-            # If the user clicked on the input_box rect.
             if self.rect.collidepoint(event.pos):
                 # Toggle the active variable.
                 self.active = not self.active
             else:
                 self.active = False
-            # Change the current color of the input box.
             self.color = pg.Color(colors["white"]) if self.active else pg.Color(colors["black"])
         if event.type == pg.KEYDOWN:
             if self.active:
@@ -443,10 +398,12 @@ class InputBox:
         screen.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 5))
         # Blit the rect.
         pg.draw.rect(screen, self.color, self.rect, 2)
+
     def rand_set(self):
         anonim_num = random.randint(0,10)
         self.text = self.text + str(anonim_num)
         self.nick = self.text
+
     def empty_nick(self):
         self.text = "Anonim"
         self.nick = self.text
@@ -501,8 +458,6 @@ def menu():
         for e in pg.event.get():  # pętla po zdarzeniach - klkniecia, naciścnięcia
             if e.type == pg.QUIT:
                 run = False
-                # pg.quit()
-                # quit()
             if e.type == pg.MOUSEMOTION:  # najechanie na przycisk
                 for room in serversButtons:
                     if room.isOver(pg.mouse.get_pos()):
@@ -518,7 +473,7 @@ def menu():
                             if not get_another:
                                 get_another = True
                             pg.time.delay(500)
-                            if booked_room[1] == True:
+                            if booked_room[1]:
                                 booked_room[1] = False
                                 poczekalnia()  # oczekiwianie na pozostalych graczy
                                 screen = pg.display.set_mode((800, 600))
@@ -578,9 +533,6 @@ def poczekalnia():
                         # + 1 osoba do ankiety
                         vote[2] = '1'
                         vote[0] = True
-
-
-                        # run = False
                     if wait_button.isOver(pg.mouse.get_pos()) and players > 2 and players != 5 and vote[2] == '2':
                         vote[2] = '0'
                         vote[0] = True
@@ -654,11 +606,8 @@ def game():
             id, hang, score = player
             if hang == 6:
                 counter += 1
-        # print("Wyswietlone slowo  " + display_word)
-        # print("Znikaace slowo  " + word1)
         if len(player_hang_score_arr) - counter < 2 or word1 == "":  # skonczyla cale slowo sie uzupelnilo
             end = True
-
         if end:
             reset_game()
             run = False
@@ -682,10 +631,8 @@ def comments(option):
         screen.fill(colors["white"])
         text = WORD_FONT.render("GAME RESULTS:", 1, colors["black"])
         screen.blit(text, (round(p_width / 2) - 90, 40))
-        print(player_hang_score_arr)
         player_hang_score_arr = sort_players(player_hang_score_arr)
         cord_y = 90
-        print(player_hang_score_arr)
         for i in range(len(player_hang_score_arr)):
             if player_hang_score_arr[int(i)][1] == 6:
                 text = LETTER_FONT.render(
@@ -716,9 +663,8 @@ def comments(option):
                             run = False
                             pg.QUIT
                             quit()
-
             pg.display.update()
-    elif option ==2:
+    elif option == 2:
         while run:
             screen.fill(colors["white"])
             text = WORD_FONT.render("Disconnected from sever", 1, colors["black"])
@@ -773,7 +719,7 @@ def sort_players(tab):
         else:
             tab_winners.append(tab[i])
     tab_winners = sorted(tab_winners,key=lambda x: x[1], reverse=True)
-    tab_full_hangsorted = sorted(tab_full_hang,key=lambda x: x[1], reverse=True)
+    tab_full_hang = sorted(tab_full_hang,key=lambda x: x[1], reverse=True)
 
     return tab_winners + tab_full_hang
 
@@ -784,11 +730,10 @@ def reset_game():
         let[3] = True
 
 
+
 try:
     ip_addr, port = init()
     menu()
-    # game()
-    # results()
 except KeyboardInterrupt:  # obsluga ctr+C
     s.close()
     sys.exit(0)
