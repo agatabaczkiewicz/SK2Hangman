@@ -1,4 +1,4 @@
-# SK2Hangman
+# Multiplayer Hangman
 
 **Sposób kompilacji**
 
